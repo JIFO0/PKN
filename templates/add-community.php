@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag
 
             // Save
             $result = sc_save_community($data);
+            error_log('Add community save result: ' . print_r($result, true));
 
             // Build redirect URL
             $redirect_url = add_query_arg(
@@ -66,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag
                 $redirect_url = add_query_arg('error', urlencode($result), $redirect_url);
             }
             
+            error_log('Add community redirect URL: ' . $redirect_url);
             wp_safe_redirect($redirect_url);
             exit;
         }

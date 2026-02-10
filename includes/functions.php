@@ -10,6 +10,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+
+// Prevent accidental double-loading of this file.
+if (defined('SC_FUNCTIONS_FILE_LOADED')) {
+    return;
+}
+define('SC_FUNCTIONS_FILE_LOADED', true);
+
 /**
  * Search communities based on search term and tags with fuzzy matching
  * 
@@ -141,6 +148,10 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
     // Execute the query
     $results = $wpdb->get_results($query);
     
+    error_log('Search SQL: ' . $query);
+    error_log('Search SQL error: ' . $wpdb->last_error);
+    error_log('Search raw results count: ' . (is_array($results) ? count($results) : 0));
+
     // Format the results
     $communities = array();
     foreach ($results as $result) {

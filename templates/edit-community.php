@@ -85,6 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
 
             // Save
             $result = sc_save_community($data);
+            error_log('Edit community ID: ' . $community_id);
+            error_log('Edit community save result: ' . print_r($result, true));
 
             // Build redirect URL
             $redirect_url = add_query_arg(
@@ -101,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 $redirect_url = add_query_arg('error', urlencode($result), $redirect_url);
             }
             
+            error_log('Edit community redirect URL: ' . $redirect_url);
             wp_safe_redirect($redirect_url);
             exit;
         }
