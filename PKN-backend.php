@@ -534,12 +534,8 @@ function sc_enqueue_assets() {
     // Enqueue scripts
     wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/admin-panel.css'));
     
-    // Localize script
-    wp_localize_script('sc-script', 'scienceCommunitiesData', array(
-        'ajaxUrl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('science_communities_nonce')
-    ));
-    
+    // Localize data used by admin-script.js uploader.
+        
     // Enqueue admin panel assets
     global $post;
     if (is_page() && $post && (
@@ -552,6 +548,10 @@ function sc_enqueue_assets() {
     )) {
         wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION);
         wp_enqueue_script('sc-admin-script', SC_PLUGIN_URL . 'assets/js/admin-script.js', array('jquery'), SC_PLUGIN_VERSION, true);
+        wp_localize_script('sc-admin-script', 'scienceCommunitiesData', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('science_communities_nonce')
+        ));
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/results.css')) {
             wp_enqueue_style('sc-results', SC_PLUGIN_URL . 'assets/css/results.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/results.css'));
         }
@@ -775,7 +775,7 @@ function sc_handle_edit_community() {
     $result = sc_save_community($data);
     
     $redirect_url = add_query_arg(
-        array('page' => 'sc-edit-community', 'id' => $community_id),
+        array('action' => 'edit', 'id' => $community_id),
         sc_get_admin_page_url()
     );
     

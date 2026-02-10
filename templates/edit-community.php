@@ -192,6 +192,9 @@ $all_tags = sc_get_all_tags();
         <div class="sc-form-group">
             <label for="sc-logo"><?php echo esc_html__('Logo URL', 'science-communities'); ?></label>
             <input type="url" id="sc-logo" name="logo" value="<?php echo esc_url($community['logo']); ?>">
+            <div class="sc-logo-preview" style="margin-top:10px;">
+                <img id="sc-logo-preview-image" src="<?php echo esc_url($community['logo']); ?>" alt="Logo preview" style="max-width:180px;max-height:180px;<?php echo empty($community['logo']) ? 'display:none;' : ''; ?>">
+            </div>
             
             <!-- Logo upload section -->
             <div class="sc-logo-upload">
