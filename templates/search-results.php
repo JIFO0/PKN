@@ -18,7 +18,8 @@ $selected_tags = isset($_GET['sc_tags']) ? array_map('sanitize_text_field', (arr
 $communities = sc_search_communities($search_query, $selected_tags);
 
 // Get the detail page URL (assumes a page with the shortcode [science_community_detail])
-$detail_page_url = site_url('/details/');?>
+$detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));
+$search_page_url = sc_get_page_url_by_shortcode('science_communities_search', home_url('/science-communities/'));?>
 
 <div class="sc-results-container">
     <div class="sc-results-header">
@@ -58,7 +59,7 @@ $detail_page_url = site_url('/details/');?>
             ?>
         </div>
         
-        <a href="<?php echo esc_url(home_url('/science-communities/')); ?>" class="sc-new-search">
+        <a href="<?php echo esc_url($search_page_url); ?>" class="sc-new-search">
             <?php _e('New Search', 'science-communities'); ?>
         </a>
     </div>

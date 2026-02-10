@@ -20,20 +20,20 @@ if (!is_user_logged_in() || !sc_is_superadmin()) {
 $success_message = '';
 $error_message = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_flag'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag'])) {
     // Verify nonce
-    if (!isset($_POST['sc_edit_community_nonce']) || !wp_verify_nonce($_POST['sc_edit_community_nonce'], 'sc_edit_community')) {
+    if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
         $error_message = __('Security check failed. Please try again.', 'science-communities');
     } else {
         // Rate limiting check
-        $rate_check = sc_can_user_edit_now(get_current_user_id(), $community_id);
+        $rate_check = sc_can_user_edit_now(get_current_user_id(), 'new');
         
         if (!$rate_check['allowed']) {
             $error_message = $rate_check['message'];
         } else {
             // Prepare data
             $data = array(
-                'community_id' => $community_id,
+                'community_id' => '',
                 'name' => sanitize_text_field($_POST['name']),
                 'shortdescription' => sanitize_textarea_field($_POST['shortdescription']),
                 'description' => wp_kses_post($_POST['description']),
@@ -55,10 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
             // Build redirect URL
             $redirect_url = add_query_arg(
                 array(
-                    'action' => 'edit',
-                    'id' => $community_id
+                    'action' => 'add'
                 ),
-                site_url('/sc-admin/')
+                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
             );
             
             if ($result === true) {
@@ -75,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
 
 // Check for success/error messages from redirect
 if (isset($_GET['updated']) && $_GET['updated'] == '1') {
-    $success_message = __('Community details updated successfully.', 'science-communities');
+    $success_message = __('Community created successfully.', 'science-communities');
 }
 if (isset($_GET['error'])) {
     $error_message = urldecode($_GET['error']);
@@ -91,7 +90,7 @@ $all_tags = sc_get_all_tags();
     <?php if (!empty($success_message)): ?>
         <div class="sc-notice sc-notice-success">
             <?php echo esc_html($success_message); ?>
-            <p><?php _e('Redirecting to edit page...', 'science-communities'); ?></p>
+            <p><?php _e('Community has been saved.', 'science-communities'); ?></p>
         </div>
     <?php endif; ?>
 
@@ -168,7 +167,7 @@ $all_tags = sc_get_all_tags();
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Create Community', 'science-communities'); ?>
             </button>
-            <a href="<?php echo esc_url(site_url('/sc-admin/')); ?>" class="sc-cancel-button">
+            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))); ?>" class="sc-cancel-button">
                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
             </a>
         </div>

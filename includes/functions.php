@@ -159,6 +159,39 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
 }
 
 /**
+ * Resolve URL of the first published page containing a shortcode.
+ *
+ * @param string $shortcode Shortcode tag without brackets.
+ * @param string $fallback  URL returned when no page with shortcode exists.
+ * @return string
+ */
+function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
+    $shortcode = sanitize_key($shortcode);
+
+    if (empty($shortcode)) {
+        return $fallback;
+    }
+
+    global $wpdb;
+    $like = '%' . $wpdb->esc_like('[' . $shortcode) . '%';
+    $page_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
+        $like
+    ));
+
+    $pages = empty($page_id) ? array() : array((int) $page_id);
+
+    if (!empty($pages)) {
+        $url = get_permalink((int) $pages[0]);
+        if (!empty($url)) {
+            return $url;
+        }
+    }
+
+    return $fallback;
+}
+
+/**
  * Calculate Levenshtein distance between two strings
  * Optimized version with early termination
  * 
@@ -606,4 +639,3 @@ function sc_get_faculty_name($faculty_id) {
         $faculty_id
     ));
 }
-

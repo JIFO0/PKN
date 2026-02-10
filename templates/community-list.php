@@ -112,7 +112,7 @@ switch ($sort_order) {
 $communities = $wpdb->get_results($query);
 
 // Get detail page URL
-$detail_page_url = site_url('/details/');
+$detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));
 ?>
 
 <div class="sc-list-filters">
