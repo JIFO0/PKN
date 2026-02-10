@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Authentication and authorization functions for Science Communities plugin
  *

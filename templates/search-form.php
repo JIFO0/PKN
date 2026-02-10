@@ -33,7 +33,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
         <!-- Search Form -->
         <div class="sc-search-container">
             <?php 
-                $results_page = site_url('/results/');
+                $results_page = sc_get_page_url_by_shortcode('science_communities_results', site_url('/results/'));
                 ?>
                 <form class="sc-search-form" action="<?php echo esc_url($results_page); ?>" method="get" id="sc-search-form">
                 <!-- Main Search Box -->

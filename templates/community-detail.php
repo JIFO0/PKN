@@ -16,7 +16,7 @@ $community_id = isset($_GET['id']) ? sanitize_text_field($_GET['id']) : '';
 
 // Redirect to search page if no ID provided
 if (empty($community_id)) {
-    wp_redirect(home_url('/science-communities/'));
+    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_search', home_url('/science-communities/')));
     exit;
 }
 
@@ -25,7 +25,7 @@ $community = sc_get_community_by_id($community_id);
 
 // Redirect to search page if community not found
 if (!$community) {
-    wp_redirect(home_url('/science-communities/'));
+    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_search', home_url('/science-communities/')));
     exit;
 }
 
@@ -61,7 +61,7 @@ $can_edit = sc_user_can_edit_community($community_id);
 <div class="sc-community-detail">
     <div class="sc-detail-header">
         <div class="sc-detail-navigation">
-            <a href="<?php echo esc_url(home_url('/science-communities/')); ?>" class="sc-back-link">
+            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_search', home_url('/science-communities/'))); ?>" class="sc-back-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12"></line>
                     <polyline points="12 19 5 12 12 5"></polyline>
@@ -74,7 +74,7 @@ $can_edit = sc_user_can_edit_community($community_id);
         <div class="sc-admin-actions">
             <a href="<?php echo esc_url(add_query_arg(
                 array('action' => 'edit', 'id' => $community_id),
-                site_url('/sc-admin/')  // Change to your actual admin page slug
+                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
             )); ?>" class="sc-edit-button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
