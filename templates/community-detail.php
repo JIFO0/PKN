@@ -74,7 +74,7 @@ $can_edit = sc_user_can_edit_community($community_id);
         <div class="sc-admin-actions">
             <a href="<?php echo esc_url(add_query_arg(
                 array('action' => 'edit', 'id' => $community_id),
-                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
+                sc_get_admin_page_url()
             )); ?>" class="sc-edit-button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>

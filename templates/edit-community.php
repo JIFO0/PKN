@@ -27,7 +27,7 @@ $community_id = isset($_GET['id']) ? sanitize_text_field($_GET['id']) : '';
 
 // Redirect if no community ID is provided
 if (empty($community_id)) {
-    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_admin', home_url('/admin-panel/')));
+    wp_safe_redirect(sc_get_admin_page_url());
     exit;
 }
 
@@ -36,7 +36,7 @@ $community = sc_get_community_by_id($community_id);
 
 // Redirect if community not found
 if (!$community) {
-    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_admin', home_url('/admin-panel/')));
+    wp_safe_redirect(sc_get_admin_page_url());
     exit;
 }
 
@@ -49,8 +49,18 @@ if (!sc_user_can_edit_community($community_id)) {
 // Handle form submission
 $success_message = '';
 $error_message = '';
+
+// Build explicit form action to preserve action/id on submit
+$form_action = add_query_arg(
+    array(
+        'action' => 'edit',
+        'id' => $community_id,
+    ),
+    sc_get_admin_page_url()
+);
 error_log('==== EDIT COMMUNITY FORM SUBMISSION ====');
 error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
+error_log('REQUEST_URI: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
 error_log('sc_community_add_flag isset: ' . (isset($_POST['sc_community_add_flag']) ? 'YES' : 'NO'));
 error_log('sc_community_edit_flag isset: ' . (isset($_POST['sc_community_edit_flag']) ? 'YES' : 'NO'));
 error_log('POST keys: ' . implode(', ', array_keys($_POST)));
@@ -94,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                     'action' => 'edit',
                     'id' => $community_id
                 ),
-                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
+                sc_get_admin_page_url()
             );
             
             if ($result === true) {
@@ -137,7 +147,7 @@ $all_tags = sc_get_all_tags();
         </div>
     <?php endif; ?>
 
-    <form method="post" action="" class="sc-edit-community-form">
+    <form method="post" action="<?php echo esc_url($form_action); ?>" class="sc-edit-community-form">
         <input type="hidden" name="action" value="sc_edit_community">
         <input type="hidden" name="sc_community_edit_flag" value="1">
         <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
@@ -288,7 +298,7 @@ $all_tags = sc_get_all_tags();
     <?php endif; ?>
     
     <p>
-        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/')))); ?>">
+        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_admin_page_url())); ?>">
             <?php _e('Add Administrator', 'science-communities'); ?>
         </a>
     </p>
@@ -311,7 +321,7 @@ $all_tags = sc_get_all_tags();
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Save Changes', 'science-communities'); ?>
             </button>
-            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))); ?>" class="sc-cancel-button">
+            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
             </a>
         </div>

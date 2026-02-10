@@ -20,6 +20,20 @@ if (!is_user_logged_in() || !sc_is_superadmin()) {
 $success_message = '';
 $error_message = '';
 
+// Build explicit form action (keep action=add on submit URL)
+$form_action = add_query_arg(
+    array('action' => 'add'),
+    sc_get_admin_page_url()
+);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log('==== ADD COMMUNITY FORM SUBMISSION ====');
+    error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
+    error_log('REQUEST_URI: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
+    error_log('sc_community_add_flag isset: ' . (isset($_POST['sc_community_add_flag']) ? 'YES' : 'NO'));
+    error_log('POST keys: ' . implode(', ', array_keys($_POST)));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag'])) {
     // Verify nonce
     if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
@@ -58,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag
                 array(
                     'action' => 'add'
                 ),
-                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
+                sc_get_admin_page_url()
             );
             
             if ($result === true) {
@@ -103,7 +117,7 @@ $all_tags = sc_get_all_tags();
     <?php endif; ?>
 
     <?php if (empty($success_message)): ?>
-    <form method="post" action="" class="sc-edit-community-form">
+    <form method="post" action="<?php echo esc_url($form_action); ?>" class="sc-edit-community-form">
         <input type="hidden" name="action" value="sc_add_community">
         <input type="hidden" name="sc_community_add_flag" value="1">
         <?php wp_nonce_field('sc_add_community', 'sc_add_community_nonce'); ?>
@@ -169,7 +183,7 @@ $all_tags = sc_get_all_tags();
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Create Community', 'science-communities'); ?>
             </button>
-            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))); ?>" class="sc-cancel-button">
+            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
             </a>
         </div>

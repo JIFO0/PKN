@@ -711,7 +711,7 @@ function sc_handle_edit_community() {
     
     $redirect_url = add_query_arg(
         array('page' => 'sc-edit-community', 'id' => $community_id),
-        site_url('/sc-admin/')
+        sc_get_admin_page_url()
     );
     
     if ($result === true) {

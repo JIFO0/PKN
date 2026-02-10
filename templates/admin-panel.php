@@ -98,7 +98,7 @@ $user_name = sc_get_current_user_name();
     </div>
     <?php if ($is_superadmin): ?>
     <div class="sc-admin-actions">
-        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', site_url('/sc-admin/'))); ?>" class="sc-admin-manage-users" style="flex: 1; text-align: center;">
+        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_admin_page_url())); ?>" class="sc-admin-manage-users" style="flex: 1; text-align: center;">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
@@ -107,7 +107,7 @@ $user_name = sc_get_current_user_name();
             </svg>
             <?php _e('Manage Users', 'science-communities'); ?>
         </a>
-        <a href="<?php echo esc_url(add_query_arg('action', 'add', site_url('/sc-admin/'))); ?>" class="sc-admin-add-new" style="flex: 1; text-align: center;">
+        <a href="<?php echo esc_url(add_query_arg('action', 'add', sc_get_admin_page_url())); ?>" class="sc-admin-add-new" style="flex: 1; text-align: center;">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="16"></line>
