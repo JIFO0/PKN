@@ -50,20 +50,16 @@ if (!sc_user_can_edit_community($community_id)) {
 $success_message = '';
 $error_message = '';
 
-// Build explicit form action to preserve action/id on submit
-$form_action = add_query_arg(
-    array(
-        'action' => 'edit',
-        'id' => $community_id,
-    ),
-    sc_get_admin_page_url()
-);
-error_log('==== EDIT COMMUNITY FORM SUBMISSION ====');
-error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
-error_log('REQUEST_URI: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
-error_log('sc_community_add_flag isset: ' . (isset($_POST['sc_community_add_flag']) ? 'YES' : 'NO'));
-error_log('sc_community_edit_flag isset: ' . (isset($_POST['sc_community_edit_flag']) ? 'YES' : 'NO'));
-error_log('POST keys: ' . implode(', ', array_keys($_POST)));
+// Use dedicated admin-post endpoint for reliable form processing
+$form_action = admin_url('admin-post.php');
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log('==== EDIT COMMUNITY TEMPLATE POST (fallback path) ====');
+    error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
+    error_log('REQUEST_URI: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
+    error_log('sc_community_edit_flag isset: ' . (isset($_POST['sc_community_edit_flag']) ? 'YES' : 'NO'));
+    error_log('POST keys: ' . implode(', ', array_keys($_POST)));
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_flag'])) {
     // Verify nonce
     if (!isset($_POST['sc_edit_community_nonce']) || !wp_verify_nonce($_POST['sc_edit_community_nonce'], 'sc_edit_community')) {

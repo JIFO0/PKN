@@ -20,19 +20,8 @@ if (!is_user_logged_in() || !sc_is_superadmin()) {
 $success_message = '';
 $error_message = '';
 
-// Build explicit form action (keep action=add on submit URL)
-$form_action = add_query_arg(
-    array('action' => 'add'),
-    sc_get_admin_page_url()
-);
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    error_log('==== ADD COMMUNITY FORM SUBMISSION ====');
-    error_log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD']);
-    error_log('REQUEST_URI: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
-    error_log('sc_community_add_flag isset: ' . (isset($_POST['sc_community_add_flag']) ? 'YES' : 'NO'));
-    error_log('POST keys: ' . implode(', ', array_keys($_POST)));
-}
+// Use dedicated admin-post endpoint for reliable form processing
+$form_action = admin_url('admin-post.php');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag'])) {
     // Verify nonce
