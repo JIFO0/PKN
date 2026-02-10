@@ -275,6 +275,42 @@ function sc_get_community_by_id($community_id) {
 }
 
 /**
+ * Check if user can perform an edit action right now (rate limiting for edits)
+ *
+ * @param int $user_id User ID
+ * @param string $community_id Community ID being edited, or 'new' for creating
+ * @return array Array with 'allowed' (bool) and 'message' (string)
+ */
+function sc_can_user_edit_now($user_id, $community_id = '') {
+    global $wpdb;
+    $table_audit = $wpdb->prefix . 'science_communities_audit';
+    
+    // Superadmins have no limits
+    $user = get_user_by('id', $user_id);
+    if ($user && in_array('superadmin', (array) $user->roles)) {
+        return array('allowed' => true, 'message' => '');
+    }
+    
+    // Check edits in last hour (prevent spam/abuse)
+    $edits_last_hour = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM $table_audit 
+        WHERE admin_user_id = %d 
+        AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)",
+        $user_id
+    ));
+    
+    // Allow up to 10 edits per hour for regular admins
+    if ($edits_last_hour >= 10) {
+        return array(
+            'allowed' => false,
+            'message' => __('Rate limit exceeded. You can make up to 10 edits per hour. Please try again later.', 'science-communities')
+        );
+    }
+    
+    return array('allowed' => true, 'message' => '');
+}
+
+/**
  * Check if user can upload files (rate limiting)
  *
  * @param int $user_id The user ID
@@ -333,9 +369,29 @@ function sc_handle_logo_upload($file, $user_id) {
     // Validate file type
     $allowed_types = array('image/png', 'image/jpeg', 'image/jpg', 'image/webp');
     // Validate MIME type using multiple methods
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime_type = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
+    // Validate MIME type using multiple methods with fallback for XAMPP
+    $mime_type = false;
+    if (function_exists('finfo_open') && function_exists('finfo_file')) {
+        $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo !== false) {
+            $mime_type = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+        }
+    }
+
+    // Fallback to WordPress function if finfo failed
+    if ($mime_type === false) {
+        $wp_filetype = wp_check_filetype_and_ext($file['tmp_name'], $file['name']);
+        $mime_type = $wp_filetype['type'];
+    }
+
+    // Final fallback to getimagesize
+    if (!$mime_type || $mime_type === 'application/octet-stream') {
+        $image_info = @getimagesize($file['tmp_name']);
+        if ($image_info && isset($image_info['mime'])) {
+            $mime_type = $image_info['mime'];
+        }
+    }
 
     // Also check file extension
     $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));

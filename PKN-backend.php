@@ -95,6 +95,31 @@ function sc_check_file_encoding() {
 register_deactivation_hook(__FILE__, 'sc_deactivate_plugin');
 
 /**
+ * Robust redirect helper that handles wp_safe_redirect whitelist failures
+ * 
+ * @param string $base_url Base URL to redirect to
+ * @param array $query_args Query arguments to append
+ */
+function sc_robust_redirect($base_url, $query_args = array()) {
+    // Build full URL with query args
+    $redirect_url = add_query_arg($query_args, $base_url);
+    
+    error_log('Redirect URL: ' . $redirect_url);
+    
+    // Try wp_safe_redirect first (checks whitelist)
+    $redirected = wp_safe_redirect($redirect_url);
+    
+    if (!$redirected) {
+        // If wp_safe_redirect failed, fall back to wp_redirect
+        // This happens if URL isn't in WordPress allowed_redirect_hosts
+        error_log('wp_safe_redirect failed, using wp_redirect fallback');
+        wp_redirect($redirect_url);
+    }
+    
+    exit;
+}
+
+/**
  * Plugin activation function
  */
 function sc_activate_plugin() {
@@ -524,6 +549,9 @@ function sc_debug_shortcode($atts) {
 /**
  * Register assets
  */
+/**
+ * Register assets
+ */
 function sc_enqueue_assets() {
     // Enqueue globals first
     wp_enqueue_style('sc-ug-globals', SC_PLUGIN_URL . 'assets/css/globals.css', array(), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/globals.css'));
@@ -534,13 +562,7 @@ function sc_enqueue_assets() {
     // Enqueue scripts
     wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/admin-panel.css'));
     
-    // Localize script
-    wp_localize_script('sc-script', 'scienceCommunitiesData', array(
-        'ajaxUrl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('science_communities_nonce')
-    ));
-    
-    // Enqueue admin panel assets
+    // Enqueue admin panel assets on plugin pages
     global $post;
     if (is_page() && $post && (
         has_shortcode($post->post_content, 'science_communities_admin') ||
@@ -552,18 +574,30 @@ function sc_enqueue_assets() {
     )) {
         wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION);
         wp_enqueue_script('sc-admin-script', SC_PLUGIN_URL . 'assets/js/admin-script.js', array('jquery'), SC_PLUGIN_VERSION, true);
+        
+        // CRITICAL: Localize admin script for AJAX (must be AFTER enqueue)
+        wp_localize_script('sc-admin-script', 'scienceCommunitiesData', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('science_communities_nonce')
+        ));
+        
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/results.css')) {
             wp_enqueue_style('sc-results', SC_PLUGIN_URL . 'assets/css/results.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/results.css'));
         }
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/search.css')) {
             wp_enqueue_style('sc-search', SC_PLUGIN_URL . 'assets/css/search.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/search.css'));
         }
-        if (file_exists(SC_PLUGIN_PATH . 'assets/css/search.css')) {
+        if (file_exists(SC_PLUGIN_PATH . 'assets/css/community-list.css')) {
             wp_enqueue_style('sc-list', SC_PLUGIN_URL . 'assets/css/community-list.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/community-list.css'));
         }
     }
 }
 add_action('wp_enqueue_scripts', 'sc_enqueue_assets');
+
+function sc_enqueue_admin_scripts() {
+    wp_enqueue_style('sc-admin-style', SC_PLUGIN_URL . 'assets/css/admin-style.css', array(), SC_PLUGIN_VERSION);
+}
+add_action('admin_enqueue_scripts', 'sc_enqueue_admin_scripts');
 
 /**
  * Register AJAX handlers
@@ -637,23 +671,48 @@ function sc_ajax_get_tags() {
  * Handle AJAX file upload
  */
 function sc_ajax_upload_logo() {
-    check_ajax_referer('science_communities_nonce', 'nonce');
+    // Verify nonce
+    if (!check_ajax_referer('science_communities_nonce', 'nonce', false)) {
+        wp_send_json_error(array(
+            'message' => 'Security check failed. Please refresh the page.',
+            'code' => 'nonce_failed'
+        ));
+        return;
+    }
     
+    // Check login status
     if (!is_user_logged_in()) {
-        wp_send_json_error('You must be logged in to upload files.');
+        wp_send_json_error(array(
+            'message' => 'You must be logged in to upload files.',
+            'code' => 'not_logged_in'
+        ));
+        return;
     }
     
-    if (!isset($_FILES['logo_file'])) {
-        wp_send_json_error('No file provided.');
+    // Check file existence
+    if (!isset($_FILES['logo_file']) || empty($_FILES['logo_file']['name'])) {
+        wp_send_json_error(array(
+            'message' => 'No file provided.',
+            'code' => 'no_file'
+        ));
+        return;
     }
     
+    // Handle upload
     $user_id = get_current_user_id();
     $result = sc_handle_logo_upload($_FILES['logo_file'], $user_id);
     
+    // Always return consistent JSON structure
     if ($result['success']) {
-        wp_send_json_success($result);
+        wp_send_json_success(array(
+            'url' => $result['url'],
+            'message' => $result['message']
+        ));
     } else {
-        wp_send_json_error($result['message']);
+        wp_send_json_error(array(
+            'message' => $result['message'],
+            'code' => 'upload_failed'
+        ));
     }
 }
 add_action('wp_ajax_sc_upload_logo', 'sc_ajax_upload_logo');
@@ -681,27 +740,29 @@ function sc_log_admin_flow_request($label) {
 function sc_handle_add_community() {
     sc_log_admin_flow_request('ADD COMMUNITY ADMIN-POST');
 
+    // Capability check
     if (!is_user_logged_in() || !sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied. You must be a superadmin to add communities.', 'science-communities'));
     }
 
+    // Nonce verification
     if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed. Please try again.', 'science-communities'));
     }
 
+    // Rate limiting check
     $rate_check = sc_can_user_edit_now(get_current_user_id(), 'new');
     if (!$rate_check['allowed']) {
-        $redirect_url = add_query_arg(
+        sc_robust_redirect(
+            sc_get_admin_page_url(),
             array(
                 'action' => 'add',
                 'error' => rawurlencode($rate_check['message'])
-            ),
-            sc_get_admin_page_url()
+            )
         );
-        wp_safe_redirect($redirect_url);
-        exit;
     }
 
+    // Sanitize and prepare data
     $data = array(
         'community_id' => '',
         'name' => sanitize_text_field($_POST['name'] ?? ''),
@@ -719,20 +780,21 @@ function sc_handle_add_community() {
         'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
     );
 
+    // Save community
     $result = sc_save_community($data);
 
-    $redirect_url = add_query_arg(array('action' => 'add'), sc_get_admin_page_url());
+    error_log('Add community save result: ' . print_r($result, true));
+
+    // Build redirect with success/error
+    $query_args = array('action' => 'add');
     if ($result === true) {
-        $redirect_url = add_query_arg('updated', '1', $redirect_url);
+        $query_args['updated'] = '1';
     } else {
-        $redirect_url = add_query_arg('error', rawurlencode((string) $result), $redirect_url);
+        $query_args['error'] = rawurlencode((string) $result);
     }
 
-    error_log('Add save result: ' . print_r($result, true));
-    error_log('Add redirect URL: ' . $redirect_url);
-
-    wp_safe_redirect($redirect_url);
-    exit;
+    // Robust redirect that handles whitelist issues
+    sc_robust_redirect(sc_get_admin_page_url(), $query_args);
 }
 add_action('admin_post_sc_add_community', 'sc_handle_add_community');
 add_action('admin_post_nopriv_sc_add_community', 'sc_handle_add_community');

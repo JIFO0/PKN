@@ -16,65 +16,20 @@ if (!is_user_logged_in() || !sc_is_superadmin()) {
     return;
 }
 
-// Handle form submission
+// Single source of truth: form submits to admin-post.php handler only
+// No POST processing here - all handled in PKN-backend.php sc_handle_add_community()
 $success_message = '';
 $error_message = '';
 
-// Use dedicated admin-post endpoint for reliable form processing
+// Form action points to WordPress admin-post endpoint
 $form_action = admin_url('admin-post.php');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag'])) {
-    // Verify nonce
-    if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
-        $error_message = __('Security check failed. Please try again.', 'science-communities');
-    } else {
-        // Rate limiting check
-        $rate_check = sc_can_user_edit_now(get_current_user_id(), 'new');
-        
-        if (!$rate_check['allowed']) {
-            $error_message = $rate_check['message'];
-        } else {
-            // Prepare data
-            $data = array(
-                'community_id' => '',
-                'name' => sanitize_text_field($_POST['name']),
-                'shortdescription' => sanitize_textarea_field($_POST['shortdescription']),
-                'description' => wp_kses_post($_POST['description']),
-                'webpage' => esc_url_raw($_POST['webpage']),
-                'facebook' => esc_url_raw($_POST['facebook']),
-                'instagram' => esc_url_raw($_POST['instagram']),
-                'tiktok' => esc_url_raw($_POST['tiktok']),
-                'discord' => esc_url_raw($_POST['discord']),
-                'logo' => esc_url_raw($_POST['logo']),
-                'faculty_id' => isset($_POST['faculty_id']) && !empty($_POST['faculty_id']) ? intval($_POST['faculty_id']) : null,
-                'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
-                'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
-                'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
-            );
-
-            // Save
-            $result = sc_save_community($data);
-            error_log('Add community save result: ' . print_r($result, true));
-
-            // Build redirect URL
-            $redirect_url = add_query_arg(
-                array(
-                    'action' => 'add'
-                ),
-                sc_get_admin_page_url()
-            );
-            
-            if ($result === true) {
-                $redirect_url = add_query_arg('updated', '1', $redirect_url);
-            } else {
-                $redirect_url = add_query_arg('error', urlencode($result), $redirect_url);
-            }
-            
-            error_log('Add community redirect URL: ' . $redirect_url);
-            wp_safe_redirect($redirect_url);
-            exit;
-        }
-    }
+// Display messages from redirect query params
+if (isset($_GET['updated']) && $_GET['updated'] == '1') {
+    $success_message = __('Community created successfully.', 'science-communities');
+}
+if (isset($_GET['error'])) {
+    $error_message = urldecode($_GET['error']);
 }
 
 // Check for success/error messages from redirect
@@ -153,7 +108,22 @@ $all_tags = sc_get_all_tags();
 
         <div class="sc-form-group">
             <label for="sc-logo"><?php echo esc_html__('Logo URL', 'science-communities'); ?></label>
-            <input type="url" id="sc-logo" name="logo">
+            <input type="url" id="sc-logo" name="logo" placeholder="https://...">
+    
+            <div class="sc-upload-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <p class="description">
+                    <?php echo esc_html__('Or upload a logo (PNG, JPG, JPEG, WebP - Max 2MB, 2048x2048px)', 'science-communities'); ?>
+                </p>
+                <label for="sc-logo-upload" class="sc-upload-btn" style="display: inline-block; padding: 8px 15px; background: #0073aa; color: white; cursor: pointer; border-radius: 3px;">
+                    <?php echo esc_html__('Choose File', 'science-communities'); ?>
+                </label>
+                <input type="file" id="sc-logo-upload" accept=".png,.jpg,.jpeg,.webp" style="display:none;">
+        
+                <div class="sc-upload-progress" style="display:none; margin-top: 10px; background: #f0f0f0; height: 20px; border-radius: 3px; overflow: hidden;">
+                    <div class="sc-progress-bar" style="width: 0%; height: 100%; background: #0073aa; transition: width 0.3s;"></div>
+                </div>
+                <div class="sc-upload-message" style="margin-top: 10px;"></div>
+            </div>
         </div>
 
         <div class="sc-form-group">

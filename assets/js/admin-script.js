@@ -13,6 +13,16 @@ jQuery(document).ready(function($) {
         formData.append('nonce', scienceCommunitiesData.nonce);
         formData.append('logo_file', file);
         
+        // Check if localized data exists
+        if (typeof scienceCommunitiesData === 'undefined') {
+            console.error('scienceCommunitiesData is not defined. AJAX will fail.');
+            $('.sc-upload-progress').hide();
+            $('.sc-upload-message')
+                .addClass('error')
+                .html('Configuration error. Please refresh the page.');
+            return;
+        }
+
         $.ajax({
             url: scienceCommunitiesData.ajaxUrl,
             type: 'POST',
@@ -30,28 +40,53 @@ jQuery(document).ready(function($) {
                 return xhr;
             },
             success: function(response) {
-                $('.sc-upload-progress').hide();
-                $('.sc-progress-bar').css('width', '0%');
-                
+                console.log('Upload success response:', response);
+        
                 if (response.success) {
                     $('#sc-logo').val(response.data.url);
                     $('.sc-upload-message')
                         .addClass('success')
                         .html(response.data.message);
-                    
-                    // Update upload count
-                    location.reload();
+            
+                    // Show preview if URL exists
+                    if (response.data.url) {
+                        var previewHtml = '<div class="sc-logo-preview"><img src="' + response.data.url + '" alt="Logo preview" style="max-width: 200px; margin-top: 10px;"></div>';
+                        $('.sc-upload-message').after(previewHtml);
+                    }
                 } else {
                     $('.sc-upload-message')
                         .addClass('error')
-                        .html(response.data);
+                        .html(response.data || 'Upload failed without error message.');
                 }
             },
-            error: function() {
-                $('.sc-upload-progress').hide();
+            error: function(xhr, status, error) {
+                console.error('Upload AJAX error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+        
+                var errorMsg = 'Upload failed. ';
+                if (xhr.responseText) {
+                    try {
+                        var errorData = JSON.parse(xhr.responseText);
+                        errorMsg += errorData.data || errorData.message || xhr.statusText;
+                    } catch(e) {
+                        errorMsg += xhr.statusText || 'Please try again.';
+                    }
+                } else {
+                    errorMsg += 'Please try again.';
+                }
+        
                 $('.sc-upload-message')
                     .addClass('error')
-                    .html('Upload failed. Please try again.');
+                    .html(errorMsg);
+            },
+            complete: function() {
+                // Always hide progress and reset bar, regardless of success/failure
+                $('.sc-upload-progress').hide();
+                $('.sc-progress-bar').css('width', '0%');
             }
         });
         
