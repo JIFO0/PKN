@@ -1,4 +1,18 @@
 jQuery(document).ready(function($) {
+    function updateLogoPreview(url) {
+        var $preview = $('#sc-logo-preview-image');
+        if (!$preview.length) return;
+        if (url) {
+            $preview.attr('src', url).show();
+        } else {
+            $preview.hide();
+        }
+    }
+
+    $('#sc-logo').on('input change', function() {
+        updateLogoPreview($(this).val());
+    });
+
     // Handle logo file upload
     $('#sc-logo-upload').on('change', function(e) {
         var file = e.target.files[0];
@@ -10,6 +24,11 @@ jQuery(document).ready(function($) {
         
         var formData = new FormData();
         formData.append('action', 'sc_upload_logo');
+        if (typeof scienceCommunitiesData === 'undefined') {
+            $('.sc-upload-message').addClass('error').html('Upload config missing. Refresh page and try again.');
+            return;
+        }
+
         formData.append('nonce', scienceCommunitiesData.nonce);
         formData.append('logo_file', file);
         
