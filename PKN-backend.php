@@ -525,22 +525,6 @@ function sc_debug_shortcode($atts) {
  * Register assets
  */
 function sc_enqueue_assets() {
-    error_log('==== ENQUEUE ASSETS DEBUG ====');
-    error_log('Current URL: ' . $_SERVER['REQUEST_URI']);
-    
-    // Check if files exist
-    $css_files = [
-        'globals' => SC_PLUGIN_PATH . 'assets/css/globals.css',
-        'style' => SC_PLUGIN_PATH . 'assets/css/style.css',
-        'admin-panel' => SC_PLUGIN_PATH . 'assets/css/admin-panel.css',
-        'results' => SC_PLUGIN_PATH . 'assets/css/results.css',
-        'search' => SC_PLUGIN_PATH . 'assets/css/search.css',
-        'community-list' => SC_PLUGIN_PATH . 'assets/css/community-list.css'
-    ];
-    
-    foreach ($css_files as $name => $path) {
-        error_log("CSS $name exists: " . (file_exists($path) ? 'YES' : 'NO - FILE MISSING!'));
-    }
     // Enqueue globals first
     wp_enqueue_style('sc-ug-globals', SC_PLUGIN_URL . 'assets/css/globals.css', array(), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/globals.css'));
     
@@ -675,9 +659,90 @@ function sc_ajax_upload_logo() {
 add_action('wp_ajax_sc_upload_logo', 'sc_ajax_upload_logo');
 
 /**
+ * Focused request logging for admin add/edit flow debugging.
+ */
+function sc_log_admin_flow_request($label) {
+    $uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+    $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+    $referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
+    $content_type = isset($_SERVER['CONTENT_TYPE']) ? sanitize_text_field(wp_unslash($_SERVER['CONTENT_TYPE'])) : '';
+
+    error_log('==== ' . $label . ' ====');
+    error_log('REQUEST_METHOD: ' . $method);
+    error_log('REQUEST_URI: ' . $uri);
+    error_log('REFERER: ' . $referer);
+    error_log('CONTENT_TYPE: ' . $content_type);
+    error_log('POST keys: ' . implode(', ', array_keys($_POST)));
+}
+
+/**
+ * Handle add community form submission via admin-post.php.
+ */
+function sc_handle_add_community() {
+    sc_log_admin_flow_request('ADD COMMUNITY ADMIN-POST');
+
+    if (!is_user_logged_in() || !sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
+        wp_die('Security check failed');
+    }
+
+    $rate_check = sc_can_user_edit_now(get_current_user_id(), 'new');
+    if (!$rate_check['allowed']) {
+        $redirect_url = add_query_arg(
+            array(
+                'action' => 'add',
+                'error' => rawurlencode($rate_check['message'])
+            ),
+            sc_get_admin_page_url()
+        );
+        wp_safe_redirect($redirect_url);
+        exit;
+    }
+
+    $data = array(
+        'community_id' => '',
+        'name' => sanitize_text_field($_POST['name'] ?? ''),
+        'shortdescription' => sanitize_textarea_field($_POST['shortdescription'] ?? ''),
+        'description' => wp_kses_post($_POST['description'] ?? ''),
+        'webpage' => esc_url_raw($_POST['webpage'] ?? ''),
+        'facebook' => esc_url_raw($_POST['facebook'] ?? ''),
+        'instagram' => esc_url_raw($_POST['instagram'] ?? ''),
+        'tiktok' => esc_url_raw($_POST['tiktok'] ?? ''),
+        'discord' => esc_url_raw($_POST['discord'] ?? ''),
+        'logo' => esc_url_raw($_POST['logo'] ?? ''),
+        'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
+        'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
+        'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
+        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+    );
+
+    $result = sc_save_community($data);
+
+    $redirect_url = add_query_arg(array('action' => 'add'), sc_get_admin_page_url());
+    if ($result === true) {
+        $redirect_url = add_query_arg('updated', '1', $redirect_url);
+    } else {
+        $redirect_url = add_query_arg('error', rawurlencode((string) $result), $redirect_url);
+    }
+
+    error_log('Add save result: ' . print_r($result, true));
+    error_log('Add redirect URL: ' . $redirect_url);
+
+    wp_safe_redirect($redirect_url);
+    exit;
+}
+add_action('admin_post_sc_add_community', 'sc_handle_add_community');
+add_action('admin_post_nopriv_sc_add_community', 'sc_handle_add_community');
+
+/**
  * Handle edit community form submission
  */
 function sc_handle_edit_community() {
+    sc_log_admin_flow_request('EDIT COMMUNITY ADMIN-POST');
+
     if (!isset($_POST['sc_edit_community_nonce']) || 
         !wp_verify_nonce($_POST['sc_edit_community_nonce'], 'sc_edit_community')) {
         wp_die('Security check failed');
@@ -710,8 +775,8 @@ function sc_handle_edit_community() {
     $result = sc_save_community($data);
     
     $redirect_url = add_query_arg(
-        array('page' => 'sc-edit-community', 'id' => $community_id),
-        site_url('/sc-admin/')
+        array('action' => 'edit', 'id' => $community_id),
+        sc_get_admin_page_url()
     );
     
     if ($result === true) {

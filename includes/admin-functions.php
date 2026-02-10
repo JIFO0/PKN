@@ -119,7 +119,7 @@ function sc_get_editable_communities() {
                 'action' => 'edit',
                 'id' => $community['community_id']
             ),
-            site_url('/sc-admin/')
+            sc_get_admin_page_url()
         );
     }
     
@@ -135,73 +135,81 @@ function sc_get_editable_communities() {
 function sc_save_community($data) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'science_communities';
-    
+
     // Validate required fields
     if (empty($data['name']) || empty($data['shortdescription'])) {
         return 'Name and short description are required';
     }
-    
+
     // Sanitize input data
     $sanitized = array(
         'name' => sanitize_text_field($data['name']),
         'shortdescription' => sanitize_textarea_field($data['shortdescription']),
-        'description' => wp_kses_post($data['description']),
-        'webpage' => esc_url_raw($data['webpage']),
-        'facebook' => esc_url_raw($data['facebook']),
-        'instagram' => esc_url_raw($data['instagram']),
-        'tiktok' => esc_url_raw($data['tiktok']),
-        'discord' => esc_url_raw($data['discord']),
-        'logo' => esc_url_raw($data['logo']),
+        'description' => wp_kses_post($data['description'] ?? ''),
+        'webpage' => esc_url_raw($data['webpage'] ?? ''),
+        'facebook' => esc_url_raw($data['facebook'] ?? ''),
+        'instagram' => esc_url_raw($data['instagram'] ?? ''),
+        'tiktok' => esc_url_raw($data['tiktok'] ?? ''),
+        'discord' => esc_url_raw($data['discord'] ?? ''),
+        'logo' => esc_url_raw($data['logo'] ?? ''),
         'faculty_id' => isset($data['faculty_id']) && !empty($data['faculty_id']) ? intval($data['faculty_id']) : null,
         'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active',
-        'is_archived' => isset($data['is_archived']) ? 1 : 0,
+        'is_archived' => isset($data['is_archived']) ? intval((bool) $data['is_archived']) : 0,
     );
-    
+
     // Check if we're updating an existing community
     if (!empty($data['community_id'])) {
         $community_id = sanitize_text_field($data['community_id']);
-        
+
         // Check if user has permission to edit this community
         if (!sc_user_can_edit_community($community_id)) {
             return 'You do not have permission to edit this community';
         }
-        
+
         // Update existing record
         $result = $wpdb->update(
             $table_name,
             $sanitized,
             array('community_id' => $community_id)
         );
-        
+
+        if ($result === false) {
+            return 'Database error: ' . $wpdb->last_error;
+        }
+
         // Update tags using the proper relationship table function
-        if (!empty($data['tags']) && is_array($data['tags'])) {
+        if (isset($data['tags']) && is_array($data['tags'])) {
             sc_update_community_tags($community_id, $data['tags']);
         }
-    } else {
-        // New community - generate ID
-        $community_id = sc_generate_community_id();
-        error_log('Generated community_id: ' . $community_id);
-        $data = array(
-        'community_id' => $community_id,  // Now it's defined
-        'name' => sanitize_text_field($_POST['name']),
-        );
-        $sanitized['community_id'] = $community_id;
-        
-        // Insert new record
-        $result = $wpdb->insert($table_name, $sanitized);
-        
-        // Add tags
-        if ($result && !empty($data['tags']) && is_array($data['tags'])) {
-            sc_update_community_tags($community_id, $data['tags']);
-        }
+
+        return true;
     }
-    
-    if ($result === false) {
+
+    // New community - only superadmins can create
+    if (!sc_is_superadmin()) {
+        return 'You do not have permission to create communities';
+    }
+
+    $community_id = sc_generate_community_id();
+    $sanitized['community_id'] = $community_id;
+
+    // Insert new record
+    $result = $wpdb->insert($table_name, $sanitized);
+    if (!$result) {
         return 'Database error: ' . $wpdb->last_error;
     }
-    
+
+    // Ensure dedicated community admin role exists for future assignment
+    sc_register_community_admin_role($community_id);
+
+    // Add tags
+    if (isset($data['tags']) && is_array($data['tags'])) {
+        sc_update_community_tags($community_id, $data['tags']);
+    }
+
     return true;
 }
+
 
 /**
  * Register a new user role for community admins

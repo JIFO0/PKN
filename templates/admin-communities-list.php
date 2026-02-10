@@ -94,7 +94,7 @@ $communities = $wpdb->get_results("SELECT * FROM $table ORDER BY name ASC");
                         <?php endforeach; ?>
                     </td>
                     <td>
-                        <a href="<?php echo esc_url(add_query_arg(array('action' => 'edit', 'id' => $community->community_id), site_url('/sc-admin/'))); ?>" class="button button-small">
+                        <a href="<?php echo esc_url(add_query_arg(array('action' => 'edit', 'id' => $community->community_id), sc_get_admin_page_url())); ?>" class="button button-small">
                             <?php _e('Edit', 'science-communities'); ?>
                         </a>
                         <a href="<?php echo esc_url(wp_nonce_url(add_query_arg(array('delete' => $community->community_id)), 'delete_community_' . $community->community_id)); ?>" 
