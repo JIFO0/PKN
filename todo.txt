@@ -1,0 +1,55 @@
+Error 1. edit-community When I edit a community and click apply changes I get moved to "Page not found" and nothing changes basically
+
+Error 2. add-community When I add a community and click create community I get moved to "Page not found" and nothing changes basically
+
+Error 3. There still is an error when Editing a page in wordpress where I get an error "Nie powiodła się aktualizacja. Odpowiedź nie jest prawidłową odpowiedzią JSON.", but the changes actually stay there. It's just annoying. We need to troubleshoot this as many attempts at fixing it failed miseaably
+Error 4. ser management page to be implemented
+
+New feature 1: Community Statistics
+Why: No metrics on engagement
+Create: includes/statistics.php
+Track:
+- Page views per community (simple hit counter)
+- Social link clicks
+- Search terms that find each community
+- Tag popularity
+
+New feature 2: Bulk Edit Communities
+Why: Managing multiple communities is tedious
+Where: templates/admin-communities-list.php
+Add checkboxes and bulk actions:
+- Bulk change status
+- Bulk change faculty
+- Bulk add/remove tags
+- Bulk archive/unarchive
+
+New feature 3: Community Activity Dashboard
+Why: No visibility into what's happening
+Create new file: templates/dashboard.php
+Show:
+- Recent edits (last 10)
+- Most viewed communities (if you track views)
+- Communities without logos
+- Communities missing descriptions
+- Tag usage statistics
+
+New feature 4: Image Gallery for Communities
+Why: One logo isn't enough to showcase activities
+Where: Extend community table
+Add ability to upload multiple images:
+- Event photos
+- Team photos
+- Achievement images
+
+New feature 5: Export all communities for easier backup as CSV in WP admin panel.
+New feature 6: Community Status History
+Why: Can't see why/when community was suspended
+Create table: science_communities_status_history
+Log every status change with:
+- Old status
+- New status
+- Changed by (user)
+- Reason (text field)
+- Timestamp
+
+Mailing, contact form ect

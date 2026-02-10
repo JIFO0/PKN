@@ -176,7 +176,6 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
  * @param string $shortcode Shortcode tag without brackets.
  * @return int
  */
-if (!function_exists('sc_find_page_id_by_shortcode')) {
 function sc_find_page_id_by_shortcode($shortcode) {
     global $wpdb;
 
@@ -202,7 +201,6 @@ function sc_find_page_id_by_shortcode($shortcode) {
 
     return empty($page_id) ? 0 : (int) $page_id;
 }
-}
 
 /**
  * Resolve URL of the first published page containing a shortcode.
@@ -211,7 +209,6 @@ function sc_find_page_id_by_shortcode($shortcode) {
  * @param string $fallback  URL returned when no page with shortcode exists.
  * @return string
  */
-if (!function_exists('sc_get_page_url_by_shortcode')) {
 function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
     $page_id = sc_find_page_id_by_shortcode($shortcode);
 
@@ -224,6 +221,38 @@ function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
 
     return $fallback;
 }
+
+/**
+ * Resolve URL of the first published page containing a shortcode.
+ *
+ * @param string $shortcode Shortcode tag without brackets.
+ * @param string $fallback  URL returned when no page with shortcode exists.
+ * @return string
+ */
+function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
+    $shortcode = sanitize_key($shortcode);
+
+    if (empty($shortcode)) {
+        return $fallback;
+    }
+
+    global $wpdb;
+    $like = '%' . $wpdb->esc_like('[' . $shortcode) . '%';
+    $page_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
+        $like
+    ));
+
+    $pages = empty($page_id) ? array() : array((int) $page_id);
+
+    if (!empty($pages)) {
+        $url = get_permalink((int) $pages[0]);
+        if (!empty($url)) {
+            return $url;
+        }
+    }
+
+    return $fallback;
 }
 
 /**

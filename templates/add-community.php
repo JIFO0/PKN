@@ -21,8 +21,6 @@ $success_message = '';
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag'])) {
-    error_log('==== ADD COMMUNITY FORM SUBMISSION ====');
-    error_log('POST keys: ' . implode(', ', array_keys($_POST)));
     // Verify nonce
     if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
         $error_message = __('Security check failed. Please try again.', 'science-communities');
