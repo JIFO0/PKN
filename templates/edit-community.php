@@ -27,7 +27,7 @@ $community_id = isset($_GET['id']) ? sanitize_text_field($_GET['id']) : '';
 
 // Redirect if no community ID is provided
 if (empty($community_id)) {
-    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_admin', home_url('/admin-panel/')));
+    wp_safe_redirect(sc_get_admin_page_url());
     exit;
 }
 
@@ -36,7 +36,7 @@ $community = sc_get_community_by_id($community_id);
 
 // Redirect if community not found
 if (!$community) {
-    wp_safe_redirect(sc_get_page_url_by_shortcode('science_communities_admin', home_url('/admin-panel/')));
+    wp_safe_redirect(sc_get_admin_page_url());
     exit;
 }
 
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                     'action' => 'edit',
                     'id' => $community_id
                 ),
-                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
+                sc_get_admin_page_url()
             );
             
             if ($result === true) {
@@ -288,7 +288,7 @@ $all_tags = sc_get_all_tags();
     <?php endif; ?>
     
     <p>
-        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/')))); ?>">
+        <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_admin_page_url())); ?>">
             <?php _e('Add Administrator', 'science-communities'); ?>
         </a>
     </p>
@@ -311,7 +311,7 @@ $all_tags = sc_get_all_tags();
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Save Changes', 'science-communities'); ?>
             </button>
-            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))); ?>" class="sc-cancel-button">
+            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
             </a>
         </div>
