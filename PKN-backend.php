@@ -775,7 +775,7 @@ function sc_handle_edit_community() {
     $result = sc_save_community($data);
     
     $redirect_url = add_query_arg(
-        array('action' => 'edit', 'id' => $community_id),
+        array('page' => 'sc-edit-community', 'id' => $community_id),
         sc_get_admin_page_url()
     );
     
