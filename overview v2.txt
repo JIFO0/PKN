@@ -1,0 +1,107 @@
+Overview
+
+The Science Communities Platform is implemented as a WordPress plugin that provides a centralized catalog and search engine for academic science communities.
+The platform focuses on discoverability, archival transparency, and administrative monitoring, rather than acting as a full standalone social platform.
+
+1. The plugin enables users to:
+- Browse and search all science communities
+- Filter communities by tags, specialization and operational status
+- View detailed public profiles of each community
+
+2. The plugin enables science community owners to:
+- Add/edit info about their science community
+- Send an mail to every person following this science community
+
+3. At the same time, platform administrators (superadmins) are responsible for:
+- Monitoring whether communities are still active
+- Updating their operational status
+- Maintaining an accurate and verified archive of inactive or suspended communities
+
+Each science community is assigned a random 5-letter public ID, which is used internally for identification, permissions, and future admin tooling.
+Core Functionalities:
+- Public-facing features
+- Search engine that searches community name and short description
+- Advanced filtering (status, 2-16 tags, descriptions)
+- Paginated search results displayed sequentially
+- Admin panel for superadmins and panel for science community admins
+
+Public detail page for each community, including:
+- Name
+- Short description
+- Full description
+- Logo
+- Website and social media links
+- Current operational status
+- Administrative features
+- Centralized admin panel (outside of WordPress admin)
+- Manual verification of community activity
+- Status management and archival marking
+- Edit access restricted by internal permission logic (to be expanded later)
+- Prepared infrastructure for future CSV / Excel imports
+
+File Structure (!!! means that a file does not yet exist)
+science-communities-plugin/
+├── science-communities-plugin.php
+│   Main plugin file.
+│   Acts as the entry point: registers hooks, shortcodes, routes, and enqueues assets.
+
+├── includes/
+│   ├── functions.php
+│   │   General public-facing functions.
+│   │   Handles database queries for search, filtering, and single community retrieval.
+│
+│   ├── admin-functions.php
+│   │   Admin-side logic.
+│   │   Handles CRUD operations, status updates, verification timestamps,
+│   │   and internal consistency checks.
+│
+│   ├── auth.php
+│   │   Authentication and authorization logic.
+│   │   Responsible for checking administrative permissions.
+│   │   (Expanded in later development stages.)
+│
+│   ├── !!! db-schema.php
+│   │   Database schema definition and migrations.
+│   │   Creates and updates custom plugin tables during activation or version updates.
+│
+│   ├── !!! import.php
+│   │   Optional import utilities.
+│   │   Provides infrastructure for future CSV / Excel-based bulk data imports.
+│
+├── templates/
+│   ├── search-form.php
+│   │   Renders the public search form.
+│   │   Includes text search and tag-based filtering UI.
+│
+│   ├── search-results.php
+│   │   Displays search results in a sequential list.
+│   │   Each result includes a short summary and a link to the detail page.
+│
+│   ├── community-detail.php
+│   │   Public-facing detailed view of a single science community.
+│   │   Displays all available public information and status.
+│
+│   ├── admin-panel.php
+│   │   Administrative overview panel.
+│   │   Lists all communities, their statuses, and verification dates.
+│
+│   ├── edit-community.php
+│   │   Editing interface for community data.
+│   │   Allows authorized users to update descriptions, links, logos, and status.
+│
+├── assets/
+│   ├── css/
+│   │   ├── style.css
+│   │   │   Styles for public pages (search, results, detail views).
+│   │
+│   │   └── admin.css
+│   │       Styles specific to the admin panel and editing interfaces.
+│
+│   └── js/
+│       ├── script.js
+│       │   JavaScript for public-facing interactions
+│       │   (e.g. tag filtering, dynamic UI behavior).
+│       │
+│       └── admin-script.js
+│           JavaScript for administrative functionality
+│           (form handling, validation, dynamic updates).
