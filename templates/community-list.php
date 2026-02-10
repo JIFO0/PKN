@@ -84,13 +84,7 @@ if (!empty($where_clauses)) {
     $query .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-error_log('Final SQL: ' . $wpdb->last_query);
-error_log('SQL Error: ' . $wpdb->last_error);
-error_log('Results count: ' . count($results));
-if (!empty($results)) {
-    error_log('First result: ' . print_r($results[0], true));
-}
-error_log('==== END SEARCH DEBUG ====');
+error_log('List query (before execution): ' . $query);
 
 // Add sorting
 switch ($sort_order) {
@@ -110,6 +104,13 @@ switch ($sort_order) {
 }
 
 $communities = $wpdb->get_results($query);
+
+error_log('SQL Error: ' . $wpdb->last_error);
+error_log('Results count: ' . count($communities));
+if (!empty($communities)) {
+    error_log('First result: ' . print_r($communities[0], true));
+}
+error_log('==== END SEARCH DEBUG ====');
 
 // Get detail page URL
 $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));

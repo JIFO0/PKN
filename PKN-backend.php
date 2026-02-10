@@ -86,8 +86,8 @@ function sc_check_file_encoding() {
             error_log("!!! Whitespace before <?php in $filename - REMOVE IT!");
         }
         
-        if (strpos($content, '?>') !== false) {
-            error_log("!!! Closing ?> tag found in $filename - REMOVE IT!");
+        if (preg_match('/\?>\s*$/', $content)) {
+            error_log("!!! Trailing closing ?> tag found in $filename - REMOVE IT!");
         }
     }
 }
@@ -103,6 +103,9 @@ function sc_activate_plugin() {
 
     // Insert default faculties
     sc_insert_default_faculties();
+
+    // Ensure required frontend/admin pages exist
+    sc_ensure_required_pages();
     
     // Flush rewrite rules on activation only
     flush_rewrite_rules();
@@ -115,6 +118,114 @@ function sc_deactivate_plugin() {
     // Flush rewrite rules on deactivation
     flush_rewrite_rules();
 }
+
+
+/**
+ * Ensure required pages with plugin shortcodes exist.
+ *
+ * @return array<string,int> Map: shortcode => page ID
+ */
+function sc_ensure_required_pages() {
+    $required_pages = array(
+        'science_communities_search' => array(
+            'title' => 'PKN Search',
+            'slug' => 'sc-search',
+            'content' => '[science_communities_search]'
+        ),
+        'science_communities_results' => array(
+            'title' => 'PKN Results',
+            'slug' => 'results',
+            'content' => '[science_communities_results]'
+        ),
+        'science_community_detail' => array(
+            'title' => 'PKN Details',
+            'slug' => 'details',
+            'content' => '[science_community_detail]'
+        ),
+        'science_communities_admin' => array(
+            'title' => 'PKN Admin',
+            'slug' => 'sc-admin',
+            'content' => '[science_communities_admin]'
+        ),
+        'science_communities_list' => array(
+            'title' => 'PKN Communities List',
+            'slug' => 'sc-list',
+            'content' => '[science_communities_list]'
+        ),
+    );
+
+    $page_map = array();
+
+    foreach ($required_pages as $shortcode => $page_data) {
+        $page_id = function_exists('sc_find_page_id_by_shortcode') ? sc_find_page_id_by_shortcode($shortcode) : 0;
+
+        if (empty($page_id)) {
+            $existing = get_page_by_path($page_data['slug'], OBJECT, 'page');
+
+            if ($existing && !empty($existing->ID)) {
+                $page_id = (int) $existing->ID;
+
+                if (!has_shortcode((string) $existing->post_content, $shortcode)) {
+                    wp_update_post(array(
+                        'ID' => $page_id,
+                        'post_content' => trim((string) $existing->post_content . "\n\n" . $page_data['content'])
+                    ));
+                }
+            } else {
+                $page_id = wp_insert_post(array(
+                    'post_type' => 'page',
+                    'post_status' => 'publish',
+                    'post_title' => $page_data['title'],
+                    'post_name' => $page_data['slug'],
+                    'post_content' => $page_data['content'],
+                ));
+                if (is_wp_error($page_id)) {
+                    $page_id = 0;
+                }
+            }
+        }
+
+        $page_map[$shortcode] = (int) $page_id;
+    }
+
+    update_option('sc_shortcode_page_map', $page_map, false);
+
+    return $page_map;
+}
+
+/**
+ * Backfill required pages when plugin is already active.
+ */
+function sc_maybe_ensure_required_pages() {
+    if (!is_admin()) {
+        return;
+    }
+
+    $required_shortcodes = array(
+        'science_communities_search',
+        'science_communities_results',
+        'science_community_detail',
+        'science_communities_admin',
+        'science_communities_list',
+    );
+
+    $page_map = get_option('sc_shortcode_page_map', array());
+    $is_missing_any = false;
+
+    foreach ($required_shortcodes as $shortcode) {
+        if (empty($page_map[$shortcode]) || !sc_find_page_id_by_shortcode($shortcode)) {
+            $is_missing_any = true;
+            break;
+        }
+    }
+
+    $last_version = get_option('sc_pages_ensured_version', '');
+    if ($is_missing_any || $last_version !== SC_PLUGIN_VERSION) {
+        sc_ensure_required_pages();
+        update_option('sc_pages_ensured_version', SC_PLUGIN_VERSION, false);
+    }
+}
+add_action('admin_init', 'sc_maybe_ensure_required_pages');
 
 /**
  * Create database tables

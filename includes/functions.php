@@ -158,6 +158,59 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
     return $communities;
 }
 
+
+/**
+ * Find first published page ID containing a shortcode.
+ *
+ * @param string $shortcode Shortcode tag without brackets.
+ * @return int
+ */
+function sc_find_page_id_by_shortcode($shortcode) {
+    global $wpdb;
+
+    $shortcode = sanitize_key($shortcode);
+    if (empty($shortcode)) {
+        return 0;
+    }
+
+    $page_map = get_option('sc_shortcode_page_map', array());
+    if (!empty($page_map[$shortcode])) {
+        $mapped_page_id = (int) $page_map[$shortcode];
+        $mapped_page = get_post($mapped_page_id);
+        if ($mapped_page && $mapped_page->post_type === 'page' && $mapped_page->post_status === 'publish' && has_shortcode((string) $mapped_page->post_content, $shortcode)) {
+            return $mapped_page_id;
+        }
+    }
+
+    $like = '%' . $wpdb->esc_like('[' . $shortcode) . '%';
+    $page_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
+        $like
+    ));
+
+    return empty($page_id) ? 0 : (int) $page_id;
+}
+
+/**
+ * Resolve URL of the first published page containing a shortcode.
+ *
+ * @param string $shortcode Shortcode tag without brackets.
+ * @param string $fallback  URL returned when no page with shortcode exists.
+ * @return string
+ */
+function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
+    $page_id = sc_find_page_id_by_shortcode($shortcode);
+
+    if (!empty($page_id)) {
+        $url = get_permalink($page_id);
+        if (!empty($url)) {
+            return $url;
+        }
+    }
+
+    return $fallback;
+}
+
 /**
  * Resolve URL of the first published page containing a shortcode.
  *
