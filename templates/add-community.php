@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_add_flag
                 array(
                     'action' => 'add'
                 ),
-                sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))
+                sc_get_admin_page_url()
             );
             
             if ($result === true) {
@@ -169,7 +169,7 @@ $all_tags = sc_get_all_tags();
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Create Community', 'science-communities'); ?>
             </button>
-            <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_admin', site_url('/sc-admin/'))); ?>" class="sc-cancel-button">
+            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
             </a>
         </div>

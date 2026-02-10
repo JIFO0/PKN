@@ -216,23 +216,24 @@ function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
         return $fallback;
     }
 
-    global $wpdb;
-    $like = '%' . $wpdb->esc_like('[' . $shortcode) . '%';
-    $page_id = $wpdb->get_var($wpdb->prepare(
-        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
-        $like
-    ));
-
-    $pages = empty($page_id) ? array() : array((int) $page_id);
-
-    if (!empty($pages)) {
-        $url = get_permalink((int) $pages[0]);
+    $page_id = sc_find_page_id_by_shortcode($shortcode);
+    if (!empty($page_id)) {
+        $url = get_permalink((int) $page_id);
         if (!empty($url)) {
             return $url;
         }
     }
 
     return $fallback;
+}
+
+/**
+ * Resolve admin panel URL used by all admin actions.
+ *
+ * @return string
+ */
+function sc_get_admin_page_url() {
+    return sc_get_page_url_by_shortcode('science_communities_admin', home_url('/sc-admin/'));
 }
 
 /**
