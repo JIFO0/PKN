@@ -1,0 +1,425 @@
+﻿/* =================================
+   UG Design System - Global Variables
+   ================================= */
+
+:root {
+  /* ===== Primary Colors - UG Branding ===== */
+  --ug-blue: #0041d2;
+  --ug-blue-dark: #052d73;
+  --ug-blue-darker: #00214d;
+  --ug-blue-hover: #0034A7;
+  --ug-blue-light: #A1DAF8;
+  
+  /* ===== Secondary Colors ===== */
+  --ug-cyan: #48BDCB;
+  --ug-cyan-hover: #3da9b7;
+  --ug-cyan-light: #6fcdd9;
+  
+  /* ===== Neutral Colors ===== */
+  --ug-white: #ffffff;
+  --ug-bg-light: #F5F5F5;
+  --ug-bg-lighter: #f8f9fa;
+  --ug-gray-100: #f8f9fa;
+  --ug-gray-200: #e9ecef;
+  --ug-gray-300: #dee2e6;
+  --ug-gray-400: #ced4da;
+  --ug-gray-500: #adb5bd;
+  --ug-gray-600: #6c757d;
+  --ug-gray-700: #495057;
+  --ug-gray-800: #343a40;
+  --ug-gray-900: #212529;
+  --ug-black: #000000;
+  
+  /* ===== Semantic Colors ===== */
+  --ug-success: #28a745;
+  --ug-success-light: #d4edda;
+  --ug-warning: #ff8800;
+  --ug-warning-light: #fff3cd;
+  --ug-danger: #cc0000;
+  --ug-danger-light: #f8d7da;
+  --ug-info: #0dcaf0;
+  --ug-info-light: #cff4fc;
+  
+  /* ===== Typography ===== */
+  --ug-font-primary: 'DM Sans', sans-serif;
+  --ug-font-headings: 'Work Sans', sans-serif;
+  --ug-font-monospace: 'Courier New', monospace;
+  
+  --ug-font-size-base: 14px;
+  --ug-font-size-small: 11px;
+  --ug-font-size-large: 16px;
+  --ug-font-size-h1: 2.5rem;
+  --ug-font-size-h2: 2rem;
+  --ug-font-size-h3: 1.75rem;
+  --ug-font-size-h4: 1.5rem;
+  --ug-font-size-h5: 1.25rem;
+  --ug-font-size-h6: 1rem;
+  
+  --ug-font-weight-normal: 400;
+  --ug-font-weight-medium: 500;
+  --ug-font-weight-semibold: 600;
+  --ug-font-weight-bold: 700;
+  
+  --ug-line-height-base: 1.5;
+  --ug-line-height-heading: 1.3;
+  --ug-line-height-tight: 1.2;
+  
+  /* ===== Spacing ===== */
+  --ug-spacing-xs: 0.25rem;
+  --ug-spacing-sm: 0.5rem;
+  --ug-spacing-md: 1rem;
+  --ug-spacing-lg: 1.5rem;
+  --ug-spacing-xl: 2rem;
+  --ug-spacing-2xl: 3rem;
+  
+  /* ===== Border Radius ===== */
+  --ug-radius-sm: 4px;
+  --ug-radius-md: 6px;
+  --ug-radius-lg: 8px;
+  --ug-radius-xl: 12px;
+  --ug-radius-pill: 20px;
+  --ug-radius-circle: 50%;
+  
+  /* ===== Borders ===== */
+  --ug-border-width: 1px;
+  --ug-border-width-thick: 2px;
+  --ug-border-width-input: 3px;
+  --ug-border-color: #e0e0e0;
+  --ug-border-color-dark: #d6d6d6;
+  
+  /* ===== Shadows ===== */
+  --ug-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --ug-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --ug-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --ug-shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.15);
+  --ug-shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.1);
+  
+  /* ===== Transitions ===== */
+  --ug-transition-fast: 0.15s ease-in-out;
+  --ug-transition-base: 0.25s ease-in-out;
+  --ug-transition-slow: 0.3s ease-in-out;
+  --ug-transition-slower: 0.5s ease-in-out;
+  
+  /* ===== Z-index Scale ===== */
+  --ug-z-base: 1;
+  --ug-z-dropdown: 1000;
+  --ug-z-sticky: 1020;
+  --ug-z-fixed: 1030;
+  --ug-z-modal-backdrop: 1040;
+  --ug-z-modal: 1050;
+  --ug-z-popover: 1060;
+  --ug-z-tooltip: 1070;
+  
+  /* ===== Layout ===== */
+  --ug-container-max-width: 1530px;
+  --ug-header-height: 80px;
+  --ug-footer-min-height: 200px;
+  
+  /* ===== Form Elements ===== */
+  --ug-input-height: 42px;
+  --ug-input-height-sm: 34px;
+  --ug-input-height-lg: 50px;
+  --ug-input-padding-x: 0.75rem;
+  --ug-input-padding-y: 0.5rem;
+  --ug-input-focus-shadow: 0 0 0 3px rgba(72, 189, 203, 0.25);
+  
+  /* ===== Buttons ===== */
+  --ug-btn-padding-x: 30px;
+  --ug-btn-padding-y: 17px;
+  --ug-btn-padding-x-sm: 20px;
+  --ug-btn-padding-y-sm: 12px;
+  --ug-btn-padding-x-lg: 40px;
+  --ug-btn-padding-y-lg: 22px;
+  
+  /* ===== Animation Values ===== */
+  --ug-hover-scale: 1.02;
+  --ug-active-scale: 0.98;
+}
+
+/* =================================
+   Form Elements - Modern Input Styles
+   ================================= */
+
+/* Base Input Styles */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"],
+input[type="time"],
+textarea,
+select {
+  font-family: var(--ug-font-primary);
+  font-size: var(--ug-font-size-base);
+  color: var(--ug-gray-900);
+  background-color: var(--ug-white);
+  border: solid;
+  border-width: 1px 1px 3px 1px;
+  border-color: var(--ug-blue);
+  border-radius: 0;
+  padding: var(--ug-input-padding-y) var(--ug-input-padding-x);
+  outline: none;
+  transition: border-color var(--ug-transition-base), 
+              box-shadow var(--ug-transition-base);
+  width: 100%;
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+input[type="url"]:hover,
+input[type="search"]:hover,
+input[type="number"]:hover,
+input[type="tel"]:hover,
+input[type="date"]:hover,
+input[type="datetime-local"]:hover,
+input[type="month"]:hover,
+input[type="week"]:hover,
+input[type="time"]:hover,
+textarea:hover,
+select:hover {
+  border-bottom-color: var(--ug-cyan);
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="month"]:focus,
+input[type="week"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+  border-bottom-color: var(--ug-cyan);
+  box-shadow: var(--ug-input-focus-shadow);
+}
+
+/* Placeholder Styles */
+input::placeholder,
+textarea::placeholder {
+  color: var(--ug-gray-500);
+  opacity: 1;
+}
+
+/* Disabled State */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--ug-gray-100);
+  border-bottom-color: var(--ug-gray-300);
+  color: var(--ug-gray-500);
+  cursor: not-allowed;
+}
+
+/* Invalid State */
+input:invalid,
+textarea:invalid,
+select:invalid {
+  border-bottom-color: var(--ug-danger);
+}
+
+input:invalid:focus,
+textarea:invalid:focus,
+select:invalid:focus {
+  box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.25);
+}
+
+/* =================================
+   Checkbox & Radio - Modern Styles
+   ================================= */
+
+/* Custom Checkbox Container */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: var(--ug-border-width-thick) solid var(--ug-blue);
+  border-radius: var(--ug-radius-sm);
+  background-color: var(--ug-white);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--ug-transition-base);
+  flex-shrink: 0;
+  margin: 0;
+}
+
+input[type="checkbox"]:hover {
+  border-color: var(--ug-cyan);
+  box-shadow: 0 0 0 3px rgba(72, 189, 203, 0.1);
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  border-color: var(--ug-cyan);
+  box-shadow: var(--ug-input-focus-shadow);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--ug-cyan);
+  border-color: var(--ug-cyan);
+}
+
+input[type="checkbox"]:checked::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--ug-white);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:disabled {
+  background-color: var(--ug-gray-200);
+  border-color: var(--ug-gray-400);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:disabled:checked {
+  background-color: var(--ug-gray-400);
+  border-color: var(--ug-gray-400);
+}
+
+/* Custom Radio Button */
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: var(--ug-border-width-thick) solid var(--ug-blue);
+  border-radius: var(--ug-radius-circle);
+  background-color: var(--ug-white);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--ug-transition-base);
+  flex-shrink: 0;
+  margin: 0;
+}
+
+input[type="radio"]:hover {
+  border-color: var(--ug-cyan);
+  box-shadow: 0 0 0 3px rgba(72, 189, 203, 0.1);
+}
+
+input[type="radio"]:focus {
+  outline: none;
+  border-color: var(--ug-cyan);
+  box-shadow: var(--ug-input-focus-shadow);
+}
+
+input[type="radio"]:checked {
+  border-color: var(--ug-cyan);
+}
+
+input[type="radio"]:checked::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--ug-radius-circle);
+  background-color: var(--ug-cyan);
+}
+
+input[type="radio"]:disabled {
+  background-color: var(--ug-gray-200);
+  border-color: var(--ug-gray-400);
+  cursor: not-allowed;
+}
+
+input[type="radio"]:disabled:checked::before {
+  background-color: var(--ug-gray-400);
+}
+
+/* =================================
+   Select Dropdown Styles
+   ================================= */
+
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%230041d2' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  padding-right: 2.5rem;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* =================================
+   Utility Classes
+   ================================= */
+
+/* Text Colors */
+.text-primary { color: var(--ug-blue) !important; }
+.text-secondary { color: var(--ug-cyan) !important; }
+.text-dark { color: var(--ug-blue-dark) !important; }
+.text-muted { color: var(--ug-gray-600) !important; }
+.text-white { color: var(--ug-white) !important; }
+
+/* Background Colors */
+.bg-primary { background-color: var(--ug-blue) !important; }
+.bg-secondary { background-color: var(--ug-cyan) !important; }
+.bg-dark { background-color: var(--ug-blue-dark) !important; }
+.bg-light { background-color: var(--ug-bg-light) !important; }
+.bg-white { background-color: var(--ug-white) !important; }
+
+/* Border Utilities */
+.border-primary { border-color: var(--ug-blue) !important; }
+.border-secondary { border-color: var(--ug-cyan) !important; }
+.border-light { border-color: var(--ug-border-color) !important; }
+
+/* Spacing Utilities */
+.gap-xs { gap: var(--ug-spacing-xs) !important; }
+.gap-sm { gap: var(--ug-spacing-sm) !important; }
+.gap-md { gap: var(--ug-spacing-md) !important; }
+.gap-lg { gap: var(--ug-spacing-lg) !important; }
+.gap-xl { gap: var(--ug-spacing-xl) !important; }
+
+/* Typography Utilities */
+.font-heading { font-family: var(--ug-font-headings) !important; }
+.font-body { font-family: var(--ug-font-primary) !important; }
+
+.fw-medium { font-weight: var(--ug-font-weight-medium) !important; }
+.fw-semibold { font-weight: var(--ug-font-weight-semibold) !important; }
+.fw-bold { font-weight: var(--ug-font-weight-bold) !important; }
+
+/* Shadow Utilities */
+.shadow-sm { box-shadow: var(--ug-shadow-sm) !important; }
+.shadow-md { box-shadow: var(--ug-shadow-md) !important; }
+.shadow-lg { box-shadow: var(--ug-shadow-lg) !important; }
+.shadow-hover { box-shadow: var(--ug-shadow-hover) !important; }
+
+/* Border Radius Utilities */
+.rounded-sm { border-radius: var(--ug-radius-sm) !important; }
+.rounded-md { border-radius: var(--ug-radius-md) !important; }
+.rounded-lg { border-radius: var(--ug-radius-lg) !important; }
+.rounded-xl { border-radius: var(--ug-radius-xl) !important; }
+.rounded-pill { border-radius: var(--ug-radius-pill) !important; }
+
+/* Transition Utilities */
+.transition-fast { transition: all var(--ug-transition-fast) !important; }
+.transition-base { transition: all var(--ug-transition-base) !important; }
+.transition-slow { transition: all var(--ug-transition-slow) !important; }
+
+/* Fullwidth Utility */
+.w-100 { width: 100% !important; }

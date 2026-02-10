@@ -1,0 +1,11 @@
+# Ignore entire directories
+.git/
+.vs/
+..test/
+.ignore/
+
+# Or using wildcards to be extra safe
+.git/*
+.vs/*
+..test/*
+.ignore/*
