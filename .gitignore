@@ -3,9 +3,11 @@
 .vs/
 ..test/
 .ignore/
+.vscode/
 
 # Or using wildcards to be extra safe
 .git/*
 .vs/*
 ..test/*
 .ignore/*
+.vscode/*
