@@ -188,7 +188,7 @@ function sc_render_error_log_page() {
         
         <?php if (empty($logs)): ?>
             <div style="background: white; padding: 40px; text-align: center;">
-                <p style="color: #666; font-size: 16px;">Brak b���dw!!! Yeepeee! ?? No chyba �e s�...</p>
+                <p style="color: #666; font-size: 16px;">Brak błęddów!!! Yeepeee! 🎉🎉🎉 No chyba że są...</p>
             </div>
         <?php else: ?>
             <table class="wp-list-table widefat fixed striped">
