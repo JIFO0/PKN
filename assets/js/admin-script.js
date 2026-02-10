@@ -66,12 +66,14 @@ jQuery(document).ready(function($) {
                     $('.sc-upload-message')
                         .addClass('success')
                         .html(response.data.message);
-            
-                    // Show preview if URL exists
-                    if (response.data.url) {
-                        var previewHtml = '<div class="sc-logo-preview"><img src="' + response.data.url + '" alt="Logo preview" style="max-width: 200px; margin-top: 10px;"></div>';
+                    
+                    // Create preview container if it doesn't exist
+                    if (!$('#sc-logo-preview-container').length) {
+                        var previewHtml = '<div id="sc-logo-preview-container" class="sc-logo-preview"><img id="sc-logo-preview-image" src="' + response.data.url + '" alt="Logo preview" style="max-width: 200px; margin-top: 10px;"></div>';
                         $('.sc-upload-message').after(previewHtml);
                     }
+                    
+                    updateLogoPreview(response.data.url);
                 } else {
                     $('.sc-upload-message')
                         .addClass('error')

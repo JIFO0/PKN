@@ -274,6 +274,45 @@ function sc_get_community_by_id($community_id) {
     return $community;
 }
 
+
+/**
+ * Rate-limit community edit/create operations per user.
+ *
+ * @param int $user_id
+ * @param string $target_context
+ * @return array{allowed:bool,message:string}
+ */
+function sc_can_user_edit_now($user_id, $target_context = '') {
+    $user_id = intval($user_id);
+    if ($user_id <= 0) {
+        return array(
+            'allowed' => false,
+            'message' => __('You must be logged in to perform this action.', 'science-communities')
+        );
+    }
+
+    // Superadmins are not rate-limited.
+    if (sc_is_superadmin()) {
+        return array('allowed' => true, 'message' => '');
+    }
+
+    $window_seconds = 20;
+    $limit = 5;
+    $transient_key = 'sc_edit_window_' . $user_id;
+    $count = intval(get_transient($transient_key));
+
+    if ($count >= $limit) {
+        return array(
+            'allowed' => false,
+            'message' => __('Too many save attempts in a short time. Please wait a moment and try again.', 'science-communities')
+        );
+    }
+
+    set_transient($transient_key, $count + 1, $window_seconds);
+
+    return array('allowed' => true, 'message' => '');
+}
+
 /**
  * Check if user can perform an edit action right now (rate limiting for edits)
  *
