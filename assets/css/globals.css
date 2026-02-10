@@ -226,7 +226,7 @@ select:disabled {
 input:invalid,
 textarea:invalid,
 select:invalid {
-  border-bottom-color: var(--ug-danger);
+  border-bottom-color: var(--ug-blue);
 }
 
 input:invalid:focus,

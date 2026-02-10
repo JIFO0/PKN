@@ -411,7 +411,6 @@
   align-items: center;
   margin-bottom: var(--ug-spacing-2xl);
   padding-bottom: var(--ug-spacing-xl);
-  border-bottom: 2px solid var(--ug-border-color);
 }
 
 .sc-admin-header h1 {
@@ -474,7 +473,7 @@
   align-items: center;
   gap: var(--ug-spacing-sm);
   padding: var(--ug-btn-padding-y-sm) var(--ug-btn-padding-x-sm);
-  background: var(--ug-blue);
+  background: var(--ug-blue-dark);
   color: var(--ug-white);
   text-decoration: none;
   font-weight: var(--ug-font-weight-semibold);

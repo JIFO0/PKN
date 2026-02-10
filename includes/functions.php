@@ -199,26 +199,6 @@ function sc_find_page_id_by_shortcode($shortcode) {
  * @return string
  */
 function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
-    $page_id = sc_find_page_id_by_shortcode($shortcode);
-
-    if (!empty($page_id)) {
-        $url = get_permalink($page_id);
-        if (!empty($url)) {
-            return $url;
-        }
-    }
-
-    return $fallback;
-}
-
-/**
- * Resolve URL of the first published page containing a shortcode.
- *
- * @param string $shortcode Shortcode tag without brackets.
- * @param string $fallback  URL returned when no page with shortcode exists.
- * @return string
- */
-function sc_get_page_url_by_shortcode($shortcode, $fallback = '') {
     $shortcode = sanitize_key($shortcode);
 
     if (empty($shortcode)) {
