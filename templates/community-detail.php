@@ -29,6 +29,8 @@ if (!$community) {
     exit;
 }
 
+sc_track_community_view($community_id);
+
 // Prepare social links array for easier iteration
 $social_links = array(
     'webpage' => array(
@@ -128,7 +130,12 @@ $can_edit = sc_user_can_edit_community($community_id);
                     <?php foreach ($social_links as $key => $link): ?>
                         <?php if (!empty($community[$key])): ?>
                         <li class="sc-social-item sc-social-<?php echo esc_attr($key); ?>">
-                            <a href="<?php echo esc_url($community[$key]); ?>" target="_blank" rel="noopener noreferrer">
+                            <a href="<?php echo esc_url(add_query_arg(array(
+                                'sc_track_social' => 1,
+                                'community_id' => $community_id,
+                                'platform' => $key,
+                                'redirect_to' => rawurlencode($community[$key])
+                            ), home_url('/'))); ?>" target="_blank" rel="noopener noreferrer">
                                 <?php echo $link['icon']; ?>
                                 <span><?php echo esc_html($link['title']); ?></span>
                             </a>

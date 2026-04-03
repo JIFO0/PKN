@@ -23,6 +23,7 @@ require_once SC_PLUGIN_PATH . 'includes/functions.php';
 require_once SC_PLUGIN_PATH . 'includes/admin-functions.php';
 require_once SC_PLUGIN_PATH . 'includes/auth.php';
 require_once SC_PLUGIN_PATH . 'includes/error-logger.php';
+require_once SC_PLUGIN_PATH . 'includes/statistics.php';
 
 // Enable debug mode (set to false in production)
 define('SC_DEBUG_MODE', true);
@@ -152,6 +153,11 @@ function sc_ensure_required_pages() {
             'slug' => 'sc-list',
             'content' => '[science_communities_list]'
         ),
+        'science_communities_statistics' => array(
+            'title' => 'Community Statistics',
+            'slug' => 'community-statistics',
+            'content' => '[science_communities_statistics]'
+        ),
     );
 
     $page_map = array();
@@ -207,6 +213,7 @@ function sc_maybe_ensure_required_pages() {
         'science_community_detail',
         'science_communities_admin',
         'science_communities_list',
+        'science_communities_statistics',
     );
 
     $page_map = get_option('sc_shortcode_page_map', array());
@@ -226,6 +233,26 @@ function sc_maybe_ensure_required_pages() {
     }
 }
 add_action('admin_init', 'sc_maybe_ensure_required_pages');
+
+function sc_handle_social_tracking_redirect() {
+    if (!isset($_GET['sc_track_social']) || (int) $_GET['sc_track_social'] !== 1) {
+        return;
+    }
+
+    $community_id = isset($_GET['community_id']) ? sanitize_text_field($_GET['community_id']) : '';
+    $platform = isset($_GET['platform']) ? sanitize_key($_GET['platform']) : '';
+    $redirect_to = isset($_GET['redirect_to']) ? esc_url_raw(rawurldecode($_GET['redirect_to'])) : '';
+
+    if (!empty($community_id) && !empty($platform)) {
+        sc_track_social_click($community_id, $platform);
+    }
+
+    if (!empty($redirect_to)) {
+        wp_safe_redirect($redirect_to);
+        exit;
+    }
+}
+add_action('template_redirect', 'sc_handle_social_tracking_redirect');
 
 /**
  * Create database tables
@@ -345,6 +372,9 @@ function sc_create_tables() {
         KEY uploaded_at (uploaded_at)
     ) $charset_collate;";
     dbDelta($sql);
+
+    // 9. Statistics/events table
+    sc_create_statistics_table();
 }
 
 /**
@@ -399,6 +429,7 @@ function sc_register_shortcodes() {
     add_shortcode('science_communities_results', 'sc_search_results_shortcode');
     add_shortcode('science_communities_add', 'sc_add_community_shortcode');
     add_shortcode('science_communities_list', 'sc_community_list_shortcode');
+    add_shortcode('science_communities_statistics', 'sc_statistics_shortcode');
     add_shortcode('science_communities_debug', 'sc_debug_shortcode');
 }
 add_action('init', 'sc_register_shortcodes');
@@ -509,6 +540,16 @@ function sc_community_list_shortcode($atts) {
 function sc_search_results_shortcode($atts) {
     ob_start();
     include SC_PLUGIN_PATH . 'templates/search-results.php';
+    return ob_get_clean();
+}
+
+function sc_statistics_shortcode($atts) {
+    if (!is_user_logged_in() || !sc_user_can_edit_any_community()) {
+        return '<p>' . __('You do not have permission to access community statistics.', 'science-communities') . '</p>';
+    }
+
+    ob_start();
+    include SC_PLUGIN_PATH . 'templates/community-statistics.php';
     return ob_get_clean();
 }
 
@@ -843,6 +884,24 @@ function sc_add_admin_menu() {
         'pkn-tags-faculties',
         'sc_render_tags_faculties_page'
     );
+
+    add_submenu_page(
+        'pkn-communities',
+        'Activity Dashboard',
+        'Activity Dashboard',
+        'manage_options',
+        'pkn-dashboard',
+        'sc_render_dashboard_page'
+    );
+
+    add_submenu_page(
+        'pkn-communities',
+        'Community Statistics',
+        'Community Statistics',
+        'manage_options',
+        'pkn-community-statistics',
+        'sc_render_statistics_page'
+    );
 }
 add_action('admin_menu', 'sc_add_admin_menu');
 
@@ -859,24 +918,102 @@ function sc_handle_bulk_delete() {
         return;
     }
     
-    if (isset($_POST['community_ids']) && is_array($_POST['community_ids'])) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'science_communities';
-        $deleted_count = 0;
-        
-        foreach ($_POST['community_ids'] as $community_id) {
-            $community_id = sanitize_text_field($community_id);
+    if (empty($_POST['community_ids']) || !is_array($_POST['community_ids'])) {
+        return;
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_communities';
+    $community_ids = array_map('sanitize_text_field', (array) $_POST['community_ids']);
+    $bulk_action = isset($_POST['sc_bulk_action']) ? sanitize_key($_POST['sc_bulk_action']) : '';
+    $processed_count = 0;
+    $message = '';
+
+    foreach ($community_ids as $community_id) {
+        if ($bulk_action === 'delete') {
             if (sc_delete_community($community_id)) {
-                $deleted_count++;
+                $processed_count++;
             }
+            continue;
         }
-        
-        add_settings_error(
-            'pkn_messages',
-            'pkn_message',
-            sprintf(__('%d communities deleted successfully.', 'science-communities'), $deleted_count),
-            'success'
-        );
+
+        if ($bulk_action === 'archive' || $bulk_action === 'unarchive') {
+            $processed_count += (int) $wpdb->update(
+                $table,
+                array('is_archived' => $bulk_action === 'archive' ? 1 : 0),
+                array('community_id' => $community_id),
+                array('%d'),
+                array('%s')
+            );
+            continue;
+        }
+
+        if ($bulk_action === 'status') {
+            $new_status = isset($_POST['bulk_status']) ? sanitize_key($_POST['bulk_status']) : '';
+            if (in_array($new_status, array('active', 'limited', 'suspended', 'inactive'), true)) {
+                $processed_count += (int) $wpdb->update(
+                    $table,
+                    array('status' => $new_status),
+                    array('community_id' => $community_id),
+                    array('%s'),
+                    array('%s')
+                );
+            }
+            continue;
+        }
+
+        if ($bulk_action === 'faculty') {
+            $faculty_id = isset($_POST['bulk_faculty_id']) ? intval($_POST['bulk_faculty_id']) : 0;
+            if ($faculty_id > 0) {
+                $processed_count += (int) $wpdb->update(
+                    $table,
+                    array('faculty_id' => $faculty_id),
+                    array('community_id' => $community_id),
+                    array('%d'),
+                    array('%s')
+                );
+            }
+            continue;
+        }
+
+        if ($bulk_action === 'add_tags' || $bulk_action === 'remove_tags') {
+            $bulk_tag_ids = isset($_POST['bulk_tag_ids']) ? array_map('intval', (array) $_POST['bulk_tag_ids']) : array();
+            if (empty($bulk_tag_ids)) {
+                continue;
+            }
+
+            $existing_tags = sc_get_community_tags($community_id);
+            $existing_tag_ids = array_map('intval', wp_list_pluck($existing_tags, 'id'));
+
+            if ($bulk_action === 'add_tags') {
+                $next_tag_ids = array_unique(array_merge($existing_tag_ids, $bulk_tag_ids));
+            } else {
+                $next_tag_ids = array_diff($existing_tag_ids, $bulk_tag_ids);
+            }
+
+            sc_update_community_tags($community_id, $next_tag_ids);
+            $processed_count++;
+        }
+    }
+
+    if ($bulk_action === 'delete') {
+        $message = sprintf(__('%d communities deleted successfully.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'archive') {
+        $message = sprintf(__('%d communities archived.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'unarchive') {
+        $message = sprintf(__('%d communities unarchived.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'status') {
+        $message = sprintf(__('%d communities updated with a new status.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'faculty') {
+        $message = sprintf(__('%d communities updated with a new faculty.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'add_tags') {
+        $message = sprintf(__('%d communities updated with additional tags.', 'science-communities'), $processed_count);
+    } elseif ($bulk_action === 'remove_tags') {
+        $message = sprintf(__('%d communities updated after removing tags.', 'science-communities'), $processed_count);
+    }
+
+    if (!empty($message)) {
+        add_settings_error('pkn_messages', 'pkn_message', $message, 'success');
     }
 }
 add_action('admin_init', 'sc_handle_bulk_delete');
@@ -928,6 +1065,79 @@ function sc_handle_excel_import() {
 add_action('admin_init', 'sc_handle_excel_import');
 
 /**
+ * Handle CSV export.
+ */
+function sc_handle_communities_export() {
+    if (!isset($_GET['sc_export']) || $_GET['sc_export'] !== '1') {
+        return;
+    }
+
+    if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'sc_export_communities')) {
+        return;
+    }
+
+    if (!sc_is_superadmin()) {
+        return;
+    }
+
+    global $wpdb;
+    $communities_table = $wpdb->prefix . 'science_communities';
+    $faculties_table = $wpdb->prefix . 'science_faculties';
+    $rows = $wpdb->get_results(
+        "SELECT c.*, f.faculty_name
+         FROM $communities_table c
+         LEFT JOIN $faculties_table f ON c.faculty_id = f.id
+         ORDER BY c.name ASC"
+    );
+
+    nocache_headers();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=pkn-communities-' . gmdate('Y-m-d') . '.csv');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, array(
+        'community_id',
+        'name',
+        'shortdescription',
+        'description',
+        'faculty',
+        'status',
+        'is_archived',
+        'webpage',
+        'facebook',
+        'instagram',
+        'tiktok',
+        'discord',
+        'logo',
+        'tags',
+    ));
+
+    foreach ($rows as $row) {
+        $tag_names = wp_list_pluck(sc_get_community_tags($row->community_id), 'tag_name');
+        fputcsv($output, array(
+            $row->community_id,
+            $row->name,
+            $row->shortdescription,
+            $row->description,
+            $row->faculty_name,
+            $row->status,
+            (int) $row->is_archived,
+            $row->webpage,
+            $row->facebook,
+            $row->instagram,
+            $row->tiktok,
+            $row->discord,
+            $row->logo,
+            implode(', ', $tag_names),
+        ));
+    }
+
+    fclose($output);
+    exit;
+}
+add_action('admin_init', 'sc_handle_communities_export');
+
+/**
  * Render main admin page
  */
 function sc_render_admin_page() {
@@ -948,3 +1158,14 @@ function sc_render_tags_faculties_page() {
     include SC_PLUGIN_PATH . 'templates/admin-tags-faculties.php';
 }
 
+function sc_render_dashboard_page() {
+    include SC_PLUGIN_PATH . 'templates/dashboard.php';
+}
+
+function sc_render_statistics_page() {
+    if (!sc_user_can_edit_any_community()) {
+        echo '<div class="wrap"><p>' . esc_html__('Access denied.', 'science-communities') . '</p></div>';
+        return;
+    }
+    include SC_PLUGIN_PATH . 'templates/community-statistics.php';
+}
