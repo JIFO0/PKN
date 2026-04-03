@@ -16,6 +16,7 @@ $selected_tags = isset($_GET['sc_tags']) ? array_map('sanitize_text_field', (arr
 
 // Get search results from the database
 $communities = sc_search_communities($search_query, $selected_tags);
+sc_track_search_term_for_results($search_query, $communities);
 
 // Get the detail page URL (assumes a page with the shortcode [science_community_detail])
 $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));

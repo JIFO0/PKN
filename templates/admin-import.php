@@ -13,7 +13,11 @@ settings_errors('pkn_messages');
 ?>
 
 <div class="wrap">
-    <h1><?php _e('Import Communities from Excel', 'science-communities'); ?></h1>
+    <h1 class="wp-heading-inline"><?php _e('Import Communities from Excel', 'science-communities'); ?></h1>
+    <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pkn-import&sc_export=1'), 'sc_export_communities')); ?>" class="page-title-action">
+        <?php _e('Export to CSV', 'science-communities'); ?>
+    </a>
+    <hr class="wp-header-end">
     
     <div class="card" style="max-width: 800px;">
         <h2><?php _e('Upload Excel File', 'science-communities'); ?></h2>
