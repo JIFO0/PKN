@@ -24,6 +24,7 @@ require_once SC_PLUGIN_PATH . 'includes/admin-functions.php';
 require_once SC_PLUGIN_PATH . 'includes/auth.php';
 require_once SC_PLUGIN_PATH . 'includes/error-logger.php';
 require_once SC_PLUGIN_PATH . 'includes/statistics.php';
+require_once SC_PLUGIN_PATH . 'includes/forum.php';
 
 // Enable debug mode (set to false in production)
 define('SC_DEBUG_MODE', true);
@@ -158,6 +159,11 @@ function sc_ensure_required_pages() {
             'slug' => 'community-statistics',
             'content' => '[science_communities_statistics]'
         ),
+        'science_communities_forum' => array(
+            'title' => 'PKN Forum',
+            'slug' => 'sc-forum',
+            'content' => '[science_communities_forum]'
+        ),
     );
 
     $page_map = array();
@@ -214,6 +220,7 @@ function sc_maybe_ensure_required_pages() {
         'science_communities_admin',
         'science_communities_list',
         'science_communities_statistics',
+        'science_communities_forum',
     );
 
     $page_map = get_option('sc_shortcode_page_map', array());
@@ -404,6 +411,10 @@ function sc_create_tables() {
         KEY status (status)
     ) $charset_collate;";
     dbDelta($sql);
+
+    // 12-13. Forum tables
+    sc_forum_create_tables();
+    sc_forum_maybe_install();
 }
 
 /**
@@ -460,6 +471,7 @@ function sc_register_shortcodes() {
     add_shortcode('science_communities_list', 'sc_community_list_shortcode');
     add_shortcode('science_communities_statistics', 'sc_statistics_shortcode');
     add_shortcode('science_communities_debug', 'sc_debug_shortcode');
+    add_shortcode('science_communities_forum', 'sc_forum_shortcode');
 }
 add_action('init', 'sc_register_shortcodes');
 
@@ -581,6 +593,18 @@ function sc_statistics_shortcode($atts) {
     return ob_get_clean();
 }
 
+function sc_forum_shortcode($atts) {
+    if (!sc_forum_user_can_access()) {
+        return '<p>' . __('You do not have permission to access the forum.', 'science-communities') . '</p>';
+    }
+
+    sc_forum_ensure_general_thread();
+
+    ob_start();
+    include SC_PLUGIN_PATH . 'templates/forum.php';
+    return ob_get_clean();
+}
+
 /**
  * Debug shortcode callback
  */
@@ -613,6 +637,7 @@ function sc_enqueue_assets() {
         has_shortcode($post->post_content, 'science_communities_search') ||
         has_shortcode($post->post_content, 'science_communities_results') ||
         has_shortcode($post->post_content, 'science_communities_list') ||
+        has_shortcode($post->post_content, 'science_communities_forum') ||
         strpos($_SERVER['REQUEST_URI'], '/sc-admin/') !== false
     )) {
         wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION);
@@ -633,6 +658,18 @@ function sc_enqueue_assets() {
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/community-detail.css')) {
             wp_enqueue_style('sc-detail', SC_PLUGIN_URL . 'assets/css/community-detail.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/community-detail.css'));
         }
+        if (
+            has_shortcode($post->post_content, 'science_communities_forum') ||
+            strpos($_SERVER['REQUEST_URI'], '/sc-forum') !== false
+        ) {
+            wp_enqueue_style('sc-forum', SC_PLUGIN_URL . 'assets/css/forum.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/forum.css'));
+            wp_enqueue_script('sc-forum-script', SC_PLUGIN_URL . 'assets/js/forum.js', array('jquery'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/js/forum.js'), true);
+            wp_localize_script('sc-forum-script', 'scForumData', array(
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('science_communities_nonce'),
+                'isSuperadmin' => sc_is_superadmin() ? 1 : 0,
+            ));
+        }
     }
 }
 add_action('wp_enqueue_scripts', 'sc_enqueue_assets');
@@ -651,8 +688,19 @@ function sc_register_ajax_handlers() {
     // Get tags
     add_action('wp_ajax_sc_get_tags', 'sc_ajax_get_tags');
     add_action('wp_ajax_nopriv_sc_get_tags', 'sc_ajax_get_tags');
+
+    // Forum
+    add_action('wp_ajax_sc_forum_get_threads', 'sc_forum_ajax_get_threads');
+    add_action('wp_ajax_sc_forum_get_messages', 'sc_forum_ajax_get_messages');
+    add_action('wp_ajax_sc_forum_create_thread', 'sc_forum_ajax_create_thread');
+    add_action('wp_ajax_sc_forum_post_message', 'sc_forum_ajax_post_message');
+    add_action('wp_ajax_sc_forum_edit_message', 'sc_forum_ajax_edit_message');
+    add_action('wp_ajax_sc_forum_delete_message', 'sc_forum_ajax_delete_message');
+    add_action('wp_ajax_sc_forum_close_thread', 'sc_forum_ajax_close_thread');
+    add_action('wp_ajax_sc_forum_report_message', 'sc_forum_ajax_report_message');
 }
 add_action('init', 'sc_register_ajax_handlers');
+add_action('init', 'sc_forum_maybe_install');
 
 /**
  * Update community AJAX handler
