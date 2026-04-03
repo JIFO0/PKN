@@ -473,6 +473,75 @@ function sc_handle_logo_upload($file, $user_id) {
     }
 }
 
+
+/**
+ * Normalize CSV header labels to plugin field names.
+ *
+ * @param string $header
+ * @return string
+ */
+function sc_normalize_import_header($header) {
+    $header = strtolower(trim((string) $header));
+    $header = preg_replace('/^ï»¿/', '', $header);
+    $header = preg_replace('/\s+/', '_', $header);
+
+    $aliases = array(
+        'nazwa' => 'name',
+        'nazwa_kola' => 'name',
+        'community_name' => 'name',
+        'short_description' => 'shortdescription',
+        'opis_krotki' => 'shortdescription',
+        'opis' => 'description',
+        'faculty_name' => 'faculty',
+        'wydzial' => 'faculty',
+        'www' => 'webpage',
+        'strona' => 'webpage',
+        'strona_www' => 'webpage',
+    );
+
+    return isset($aliases[$header]) ? $aliases[$header] : $header;
+}
+
+/**
+ * Detect CSV delimiter from first line.
+ *
+ * @param string $file_path
+ * @return string
+ */
+function sc_detect_csv_delimiter($file_path) {
+    $sample = (string) file_get_contents($file_path, false, null, 0, 4096);
+
+    $delimiters = array(',', ';', "	", '|');
+    $best = ',';
+    $best_count = -1;
+
+    foreach ($delimiters as $delimiter) {
+        $count = substr_count($sample, $delimiter);
+        if ($count > $best_count) {
+            $best_count = $count;
+            $best = $delimiter;
+        }
+    }
+
+    return $best;
+}
+
+/**
+ * Check if imported row has no data.
+ *
+ * @param array $row
+ * @return bool
+ */
+function sc_is_empty_import_row($row) {
+    foreach ((array) $row as $cell) {
+        if (trim((string) $cell) !== '') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /**
  * Import communities from Excel file
  *
@@ -503,23 +572,34 @@ function sc_import_from_excel($file_path) {
     $row_number = 0;
     $headers = array();
     
-    while (($row = fgetcsv($handle, 0, ',')) !== FALSE) {
+    $delimiter = sc_detect_csv_delimiter($file_path);
+
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
         $row_number++;
         
         // First row is headers
         if ($row_number === 1) {
-            $headers = array_map('strtolower', array_map('trim', $row));
+            $headers = array_map('sc_normalize_import_header', $row);
             continue;
         }
         
+        if (sc_is_empty_import_row($row)) {
+            continue;
+        }
+
         // Create associative array from row
         $data = array();
         foreach ($headers as $index => $header) {
-            $data[$header] = isset($row[$index]) ? trim($row[$index]) : '';
+            if ($header === '') {
+                continue;
+            }
+            $data[$header] = isset($row[$index]) ? trim((string) $row[$index]) : '';
         }
-        
+
+        $name = isset($data['name']) ? sanitize_text_field($data['name']) : '';
+
         // Required fields
-        if (empty($data['name'])) {
+        if ($name === '') {
             continue; // Skip rows without name
         }
         
@@ -542,7 +622,7 @@ function sc_import_from_excel($file_path) {
         
         // Prepare community data
         $community_data = array(
-            'name' => $data['name'],
+            'name' => $name,
             'shortdescription' => isset($data['shortdescription']) ? $data['shortdescription'] : '',
             'description' => isset($data['description']) ? $data['description'] : '',
             'webpage' => isset($data['webpage']) ? esc_url_raw($data['webpage']) : '',
@@ -560,14 +640,18 @@ function sc_import_from_excel($file_path) {
             $community_data['name']
         ));
         
+        $community_id = '';
+
         if ($existing) {
             // Update existing community
             $community_data['community_id'] = $existing;
             sc_save_community($community_data);
+            $community_id = $existing;
         } else {
             // Create new community
             $new_id = sc_create_community($community_data);
             if ($new_id) {
+                $community_id = $new_id;
                 $imported_count++;
                 
                 // Register admin role
@@ -578,8 +662,7 @@ function sc_import_from_excel($file_path) {
         // Handle tags
         if (!empty($data['tags'])) {
             $tags = array_map('trim', explode(',', $data['tags']));
-            $community_id = $existing ?: $new_id;
-            if ($community_id) {
+            if (!empty($community_id)) {
                 sc_update_community_tags($community_id, $tags);
             }
         }

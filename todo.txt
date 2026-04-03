@@ -81,3 +81,13 @@ Log every status change with:
 - Timestamp
 
 Mailing, contact form ect
+
+---
+
+New todo PKN (2026-04-03)
+ER1: Fix bulk CSV import dropping data / creating empty communities (harden CSV parser + validation).
+ER2: Override theme 66.66% `.col-lg-8` layout for plugin pages and force full-width content.
+ER3: Prevent footer overlap caused by `html, body, #page { height: 100%; }` by applying plugin-safe height overrides.
+MF1: Add UG-style decorative background strip + underline for key titles.
+MF2: Improve language handling visibility in Forum/Statistics by exposing PL/EN toggle there.
+Pending: Build a full UG-like header replacement with logo text/icons once final design asset file is provided.

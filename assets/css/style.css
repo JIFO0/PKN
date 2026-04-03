@@ -112,3 +112,53 @@
   border-top: 2px solid var(--ug-gray-300);
   margin: 26px 0;
 }
+
+/* Full-width rescue for themes forcing .col-lg-8 on plugin pages */
+body.sc-plugin-page .sc-force-fullwidth-column,
+body.sc-plugin-page .sc-force-fullwidth-column.col-lg-8 {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+}
+
+body.sc-plugin-page .sc-force-fullwidth-column + .col-lg-4,
+body.sc-plugin-page .sc-force-fullwidth-column + .col-md-4,
+body.sc-plugin-page .sc-force-fullwidth-column + .sidebar,
+body.sc-plugin-page .sc-plugin-row > aside {
+  display: none !important;
+}
+
+/* Footer overlap fix when the theme sets fixed page heights */
+html,
+body,
+#page {
+  height: auto !important;
+  min-height: 100%;
+}
+
+/* UG-like decorative background strip and title underline */
+.sc-search-container,
+.sc-results-container,
+.sc-list-container,
+.sc-detail-container,
+.sc-forum,
+.sc-statistics-page,
+.sc-dashboard-page {
+  background-image: url('/themes/ug_theme/images/underslider_s.png');
+  background-repeat: no-repeat;
+  background-position: top center;
+}
+
+.block-page-title-block::after,
+.sc-search-header h1::after,
+.sc-results-title::after,
+.sc-list-title::after,
+.sc-detail-title::after {
+  content: "";
+  background-image: url('/themes/ug_theme/images/underline.svg');
+  display: block;
+  width: 82px;
+  height: 3px;
+  margin: 10px 0 40px;
+  background-repeat: no-repeat;
+}

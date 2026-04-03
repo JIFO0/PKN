@@ -13,6 +13,7 @@ $stats = sc_get_statistics_data();
 ?>
 <div class="wrap sc-statistics-page">
     <h1><?php esc_html_e('Community Statistics', 'science-communities'); ?></h1>
+    <?php sc_render_lang_toggle(); ?>
 
     <h2><?php esc_html_e('Page Views per Community', 'science-communities'); ?></h2>
     <table class="widefat striped">
