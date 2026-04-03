@@ -7,6 +7,8 @@
     }
 
     let activeThreadId = parseInt($forum.data('active-thread'), 10) || 0;
+    let threadPage = parseInt($forum.data('thread-page'), 10) || 1;
+    let threadTotalPages = parseInt($forum.data('thread-total-pages'), 10) || 1;
 
     function ajax(action, data) {
         return $.post(scForumData.ajaxUrl, Object.assign({
@@ -61,13 +63,26 @@
         $list.html(html);
     }
 
-    function loadThreads() {
-        ajax('sc_forum_get_threads').done(function (response) {
+    function renderPagination() {
+        const text = `Page ${threadPage}/${threadTotalPages}`;
+        const $root = $forum.find('.sc-thread-pagination');
+        $root.find('span').text(text);
+        $root.find('.sc-thread-page-prev').prop('disabled', threadPage <= 1);
+        $root.find('.sc-thread-page-next').prop('disabled', threadPage >= threadTotalPages);
+    }
+
+    function loadThreads(targetPage) {
+        const requestedPage = targetPage || threadPage || 1;
+
+        ajax('sc_forum_get_threads', { page: requestedPage }).done(function (response) {
             if (!response.success) {
                 return;
             }
 
-            const threads = response.data || [];
+            const payload = response.data || {};
+            const threads = payload.threads || [];
+            threadPage = parseInt(payload.page, 10) || 1;
+            threadTotalPages = parseInt(payload.total_pages, 10) || 1;
             const html = threads.map((thread) => {
                 const isActive = parseInt(thread.id, 10) === activeThreadId ? 'is-active' : '';
                 const tags = [
@@ -79,6 +94,12 @@
             }).join('');
 
             $('#sc-thread-list').html(html);
+            renderPagination();
+
+            if (activeThreadId <= 0 && threads.length) {
+                activeThreadId = parseInt(threads[0].id, 10);
+                loadMessages();
+            }
         });
     }
 
@@ -115,8 +136,9 @@
                 return;
             }
             activeThreadId = parseInt(response.data.thread_id, 10);
+            threadPage = 1;
             $('.sc-forum-create-thread')[0].reset();
-            loadThreads();
+            loadThreads(1);
             loadMessages();
         });
     });
@@ -130,7 +152,7 @@
                 return;
             }
             $('#sc-forum-message-form')[0].reset();
-            loadThreads();
+            loadThreads(threadPage);
             loadMessages();
         });
     });
@@ -188,18 +210,29 @@
                 alert(response.data || 'Could not close thread.');
                 return;
             }
-            loadThreads();
+            loadThreads(threadPage);
             loadMessages();
         });
     });
 
     $forum.on('click', '.sc-forum-refresh-threads', loadThreads);
     $forum.on('click', '.sc-forum-refresh-messages', loadMessages);
+    $forum.on('click', '.sc-thread-page-prev', function () {
+        if (threadPage > 1) {
+            loadThreads(threadPage - 1);
+        }
+    });
+    $forum.on('click', '.sc-thread-page-next', function () {
+        if (threadPage < threadTotalPages) {
+            loadThreads(threadPage + 1);
+        }
+    });
 
     setInterval(function () {
-        loadThreads();
+        loadThreads(threadPage);
         loadMessages();
     }, 60000);
 
+    renderPagination();
     loadMessages();
 })(jQuery);

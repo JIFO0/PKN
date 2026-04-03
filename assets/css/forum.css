@@ -28,6 +28,19 @@
     gap: 8px;
 }
 
+.sc-thread-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    gap: 8px;
+}
+
+.sc-thread-pagination-actions {
+    display: flex;
+    gap: 6px;
+}
+
 .sc-thread-list {
     list-style: none;
     margin: 0;

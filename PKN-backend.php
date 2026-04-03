@@ -412,39 +412,9 @@ function sc_create_tables() {
     ) $charset_collate;";
     dbDelta($sql);
 
-    // 12. Forum threads
-    $sql = "CREATE TABLE {$wpdb->prefix}science_forum_threads (
-        id bigint(20) NOT NULL AUTO_INCREMENT,
-        title VARCHAR(255) NOT NULL,
-        created_by bigint(20) UNSIGNED NOT NULL DEFAULT 0,
-        is_general TINYINT(1) NOT NULL DEFAULT 0,
-        is_closed TINYINT(1) NOT NULL DEFAULT 0,
-        last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY created_by (created_by),
-        KEY is_general (is_general),
-        KEY last_activity_at (last_activity_at)
-    ) $charset_collate;";
-    dbDelta($sql);
-
-    // 13. Forum messages
-    $sql = "CREATE TABLE {$wpdb->prefix}science_forum_messages (
-        id bigint(20) NOT NULL AUTO_INCREMENT,
-        thread_id bigint(20) NOT NULL,
-        author_id bigint(20) UNSIGNED NOT NULL,
-        message_text TEXT NOT NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY thread_id (thread_id),
-        KEY author_id (author_id),
-        KEY created_at (created_at)
-    ) $charset_collate;";
-    dbDelta($sql);
-
-    sc_forum_ensure_general_thread();
+    // 12-13. Forum tables
+    sc_forum_create_tables();
+    sc_forum_maybe_install();
 }
 
 /**
@@ -688,7 +658,10 @@ function sc_enqueue_assets() {
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/community-detail.css')) {
             wp_enqueue_style('sc-detail', SC_PLUGIN_URL . 'assets/css/community-detail.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/community-detail.css'));
         }
-        if (has_shortcode($post->post_content, 'science_communities_forum')) {
+        if (
+            has_shortcode($post->post_content, 'science_communities_forum') ||
+            strpos($_SERVER['REQUEST_URI'], '/sc-forum') !== false
+        ) {
             wp_enqueue_style('sc-forum', SC_PLUGIN_URL . 'assets/css/forum.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/forum.css'));
             wp_enqueue_script('sc-forum-script', SC_PLUGIN_URL . 'assets/js/forum.js', array('jquery'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/js/forum.js'), true);
             wp_localize_script('sc-forum-script', 'scForumData', array(
@@ -727,7 +700,7 @@ function sc_register_ajax_handlers() {
     add_action('wp_ajax_sc_forum_report_message', 'sc_forum_ajax_report_message');
 }
 add_action('init', 'sc_register_ajax_handlers');
-add_action('init', 'sc_forum_ensure_general_thread');
+add_action('init', 'sc_forum_maybe_install');
 
 /**
  * Update community AJAX handler

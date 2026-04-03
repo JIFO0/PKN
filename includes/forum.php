@@ -53,6 +53,60 @@ function sc_forum_get_general_thread_id() {
     return (int) $wpdb->get_var("SELECT id FROM {$threads_table} WHERE is_general = 1 ORDER BY id ASC LIMIT 1");
 }
 
+function sc_forum_create_tables() {
+    global $wpdb;
+    $charset_collate = $wpdb->get_charset_collate();
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+    $threads_table = $wpdb->prefix . 'science_forum_threads';
+    $messages_table = $wpdb->prefix . 'science_forum_messages';
+
+    $sql = "CREATE TABLE {$threads_table} (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        title VARCHAR(255) NOT NULL,
+        created_by bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+        is_general TINYINT(1) NOT NULL DEFAULT 0,
+        is_closed TINYINT(1) NOT NULL DEFAULT 0,
+        last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY created_by (created_by),
+        KEY is_general (is_general),
+        KEY last_activity_at (last_activity_at)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    $sql = "CREATE TABLE {$messages_table} (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        thread_id bigint(20) NOT NULL,
+        author_id bigint(20) UNSIGNED NOT NULL,
+        message_text TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY thread_id (thread_id),
+        KEY author_id (author_id),
+        KEY created_at (created_at)
+    ) $charset_collate;";
+    dbDelta($sql);
+}
+
+function sc_forum_maybe_install() {
+    global $wpdb;
+    $threads_table = $wpdb->prefix . 'science_forum_threads';
+    $messages_table = $wpdb->prefix . 'science_forum_messages';
+
+    $threads_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $threads_table)) === $threads_table);
+    $messages_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $messages_table)) === $messages_table);
+
+    if (!$threads_exists || !$messages_exists) {
+        sc_forum_create_tables();
+    }
+
+    sc_forum_ensure_general_thread();
+}
+
 function sc_forum_ensure_general_thread() {
     global $wpdb;
     $threads_table = $wpdb->prefix . 'science_forum_threads';
@@ -89,6 +143,62 @@ function sc_forum_get_threads() {
          GROUP BY t.id
          ORDER BY t.is_general DESC, t.last_activity_at DESC",
         ARRAY_A
+    );
+}
+
+function sc_forum_get_threads_paginated($page = 1, $per_page = 10) {
+    global $wpdb;
+    $threads_table = $wpdb->prefix . 'science_forum_threads';
+    $messages_table = $wpdb->prefix . 'science_forum_messages';
+
+    $page = max(1, intval($page));
+    $per_page = max(1, intval($per_page));
+    $offset = ($page - 1) * $per_page;
+
+    $general_thread = $wpdb->get_row(
+        "SELECT t.id, t.title, t.created_by, t.is_general, t.is_closed, t.last_activity_at, t.created_at,
+                COUNT(m.id) as message_count
+         FROM {$threads_table} t
+         LEFT JOIN {$messages_table} m ON m.thread_id = t.id
+         WHERE t.is_general = 1
+         GROUP BY t.id
+         ORDER BY t.id ASC
+         LIMIT 1",
+        ARRAY_A
+    );
+
+    $total_regular = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$threads_table} WHERE is_general = 0");
+    $total_pages = max(1, (int) ceil($total_regular / $per_page));
+    $page = min($page, $total_pages);
+    $offset = ($page - 1) * $per_page;
+
+    $regular_threads = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT t.id, t.title, t.created_by, t.is_general, t.is_closed, t.last_activity_at, t.created_at,
+                    COUNT(m.id) as message_count
+             FROM {$threads_table} t
+             LEFT JOIN {$messages_table} m ON m.thread_id = t.id
+             WHERE t.is_general = 0
+             GROUP BY t.id
+             ORDER BY t.last_activity_at DESC
+             LIMIT %d OFFSET %d",
+            $per_page,
+            $offset
+        ),
+        ARRAY_A
+    );
+
+    $threads = array();
+    if (!empty($general_thread)) {
+        $threads[] = $general_thread;
+    }
+
+    return array(
+        'threads' => array_merge($threads, $regular_threads),
+        'page' => $page,
+        'per_page' => $per_page,
+        'total_pages' => $total_pages,
+        'total_regular' => $total_regular,
     );
 }
 
@@ -142,6 +252,7 @@ function sc_forum_get_messages($thread_id) {
 
 function sc_forum_ajax_require_access() {
     check_ajax_referer('science_communities_nonce', 'nonce');
+    sc_forum_maybe_install();
 
     if (!sc_forum_user_can_access()) {
         wp_send_json_error(__('You do not have permission to access the forum.', 'science-communities'));
@@ -150,8 +261,8 @@ function sc_forum_ajax_require_access() {
 
 function sc_forum_ajax_get_threads() {
     sc_forum_ajax_require_access();
-    $threads = sc_forum_get_threads();
-    wp_send_json_success($threads);
+    $page = isset($_POST['page']) ? intval($_POST['page']) : 1;
+    wp_send_json_success(sc_forum_get_threads_paginated($page, 10));
 }
 
 function sc_forum_ajax_get_messages() {
