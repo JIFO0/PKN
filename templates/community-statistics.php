@@ -11,7 +11,7 @@ if (!is_user_logged_in() || !sc_user_can_edit_any_community()) {
 
 $stats = sc_get_statistics_data();
 ?>
-<div class="wrap">
+<div class="wrap sc-statistics-page">
     <h1><?php esc_html_e('Community Statistics', 'science-communities'); ?></h1>
 
     <h2><?php esc_html_e('Page Views per Community', 'science-communities'); ?></h2>

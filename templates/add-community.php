@@ -110,19 +110,19 @@ $all_tags = sc_get_all_tags();
             <label for="sc-logo"><?php echo esc_html__('Logo URL', 'science-communities'); ?></label>
             <input type="url" id="sc-logo" name="logo" placeholder="https://...">
     
-            <div class="sc-upload-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+            <div class="sc-logo-upload sc-upload-section">
                 <p class="description">
                     <?php echo esc_html__('Or upload a logo (PNG, JPG, JPEG, WebP - Max 2MB, 2048x2048px)', 'science-communities'); ?>
                 </p>
-                <label for="sc-logo-upload" class="sc-upload-btn" style="display: inline-block; padding: 8px 15px; background: #0073aa; color: white; cursor: pointer; border-radius: 3px;">
+                <label for="sc-logo-upload" class="sc-upload-button">
                     <?php echo esc_html__('Choose File', 'science-communities'); ?>
                 </label>
                 <input type="file" id="sc-logo-upload" accept=".png,.jpg,.jpeg,.webp" style="display:none;">
         
-                <div class="sc-upload-progress" style="display:none; margin-top: 10px; background: #f0f0f0; height: 20px; border-radius: 3px; overflow: hidden;">
-                    <div class="sc-progress-bar" style="width: 0%; height: 100%; background: #0073aa; transition: width 0.3s;"></div>
+                <div class="sc-upload-progress" style="display:none;">
+                    <div class="sc-progress-bar"></div>
                 </div>
-                <div class="sc-upload-message" style="margin-top: 10px;"></div>
+                <div class="sc-upload-message"></div>
             </div>
         </div>
 

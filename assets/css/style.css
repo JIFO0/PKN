@@ -1,1 +1,114 @@
-﻿
+/* ==========================================
+   Shared PKN frontend styling (UG-inspired)
+   ========================================== */
+
+/* Title underline used across pages */
+.sc-results-title,
+.sc-result-name,
+.sc-detail-title,
+.sc-list-card .sc-card-title,
+.sc-forum h2,
+.sc-forum h3,
+.sc-add-community h1,
+.sc-edit-community h1,
+.sc-manage-users h1,
+.sc-manage-users h2,
+.sc-statistics-page h1,
+.sc-statistics-page h2,
+.sc-dashboard-page h1,
+.sc-dashboard-page h2,
+.sc-contact-requests-page h1 {
+  position: relative;
+  margin-bottom: 1.1rem;
+}
+
+.sc-results-title::after,
+.sc-result-name::after,
+.sc-detail-title::after,
+.sc-list-card .sc-card-title::after,
+.sc-forum h2::after,
+.sc-forum h3::after,
+.sc-add-community h1::after,
+.sc-edit-community h1::after,
+.sc-manage-users h1::after,
+.sc-manage-users h2::after,
+.sc-statistics-page h1::after,
+.sc-statistics-page h2::after,
+.sc-dashboard-page h1::after,
+.sc-dashboard-page h2::after,
+.sc-contact-requests-page h1::after {
+  content: "";
+  display: block;
+  width: 220px;
+  max-width: 50%;
+  height: 9px;
+  margin-top: 0.45rem;
+  background: url('../images/underline.svg') no-repeat left center;
+  background-size: contain;
+}
+
+.sc-list-header-description,
+.sc-results-header p {
+  color: var(--ug-gray-700);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Reusable UG cards/tables for utility pages */
+.sc-statistics-page,
+.sc-dashboard-page,
+.sc-contact-requests-page,
+.sc-manage-users {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  background: var(--ug-white);
+}
+
+.sc-statistics-page table,
+.sc-dashboard-page table,
+.sc-contact-requests-page table,
+.sc-manage-users table {
+  border: 2px solid var(--ug-gray-300);
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.sc-statistics-page th,
+.sc-dashboard-page th,
+.sc-contact-requests-page th,
+.sc-manage-users th {
+  background: var(--ug-blue);
+  color: var(--ug-white);
+  font-weight: 700;
+}
+
+.sc-statistics-page td,
+.sc-statistics-page th,
+.sc-dashboard-page td,
+.sc-dashboard-page th,
+.sc-contact-requests-page td,
+.sc-contact-requests-page th,
+.sc-manage-users td,
+.sc-manage-users th {
+  padding: 12px 14px;
+  border: 1px solid var(--ug-gray-300);
+}
+
+.sc-dashboard-page ul,
+.sc-manage-users form,
+.sc-contact-requests-page form {
+  background: var(--ug-gray-100);
+  border: 2px solid var(--ug-gray-300);
+  padding: 18px;
+}
+
+.sc-dashboard-page ul {
+  margin: 0 0 24px;
+}
+
+.sc-manage-users hr {
+  border: 0;
+  border-top: 2px solid var(--ug-gray-300);
+  margin: 26px 0;
+}
