@@ -11,7 +11,7 @@ if (!sc_is_superadmin()) {
 
 $data = sc_get_dashboard_data();
 ?>
-<div class="wrap">
+<div class="wrap sc-dashboard-page">
     <h1><?php esc_html_e('Community Activity Dashboard', 'science-communities'); ?></h1>
 
     <h2><?php esc_html_e('Recent Edits (Last 10)', 'science-communities'); ?></h2>

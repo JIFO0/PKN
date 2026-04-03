@@ -27,7 +27,7 @@ $requests = $wpdb->get_results(
 );
 ?>
 
-<div class="wrap">
+<div class="wrap sc-contact-requests-page">
     <h1><?php _e('Contact Requests', 'science-communities'); ?></h1>
     <table class="wp-list-table widefat striped">
         <thead>

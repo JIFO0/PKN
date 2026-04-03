@@ -116,7 +116,13 @@ error_log('==== END SEARCH DEBUG ====');
 $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));
 ?>
 
-<div class="sc-list-filters">
+<div class="sc-list-container">
+    <div class="sc-results-header sc-list-header">
+        <h1 class="sc-results-title"><?php _e('Science Communities Directory', 'science-communities'); ?></h1>
+        <p class="sc-list-header-description"><?php _e('Browse all science communities and refine the list using filters below.', 'science-communities'); ?></p>
+    </div>
+
+    <div class="sc-list-filters">
         <form method="get" class="sc-filter-form" id="sc-filter-form">
             <!-- Search Section -->
             <div class="sc-filter-section">
