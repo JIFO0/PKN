@@ -85,8 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 'logo' => esc_url_raw($_POST['logo']),
                 'faculty_id' => isset($_POST['faculty_id']) && !empty($_POST['faculty_id']) ? intval($_POST['faculty_id']) : null,
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
-                'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
+                'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
                 'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
+                'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
+                'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
             );
 
             // Save
@@ -126,6 +128,8 @@ if (isset($_GET['error'])) {
 
 // Get all available tags for the tag selector
 $all_tags = sc_get_all_tags();
+$event_images = sc_get_community_images($community_id, 'event');
+$team_images = sc_get_community_images($community_id, 'team');
 ?>
 
 <div class="sc-edit-community">
@@ -255,15 +259,27 @@ $all_tags = sc_get_all_tags();
             </select>
         </div>
 
+        <?php if (sc_is_superadmin()): ?>
+            <div class="sc-form-group">
+                <label for="sc-archived">
+                    <input type="checkbox" id="sc-archived" name="is_archived" value="1"
+                        <?php checked($community['is_archived'], 1); ?>>
+                    <?php echo esc_html__('Oznacz jako archiwalne', 'science-communities'); ?>
+                </label>
+                <p class="description">
+                    <?php echo esc_html__('Archiwalne koła są ukryte domyślnie w wynikach wyszukiwania.', 'science-communities'); ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
         <div class="sc-form-group">
-            <label for="sc-archived">
-                <input type="checkbox" id="sc-archived" name="is_archived" value="1" 
-                    <?php checked($community['is_archived'], 1); ?>>
-                <?php echo esc_html__('Oznacz jako archiwalne', 'science-communities'); ?>
-            </label>
-            <p class="description">
-                <?php echo esc_html__('Archiwalne koła są ukryte domyślnie w wynikach wyszukiwania.', 'science-communities'); ?>
-            </p>
+            <label for="sc-event-images"><?php _e('Event photos (one URL per line)', 'science-communities'); ?></label>
+            <textarea id="sc-event-images" name="event_images" rows="4"><?php echo esc_textarea(implode("\n", $event_images)); ?></textarea>
+        </div>
+
+        <div class="sc-form-group">
+            <label for="sc-team-images"><?php _e('Team photos (one URL per line)', 'science-communities'); ?></label>
+            <textarea id="sc-team-images" name="team_images" rows="4"><?php echo esc_textarea(implode("\n", $team_images)); ?></textarea>
         </div>
         </div>
         <?php if (sc_is_superadmin()): ?>
@@ -303,6 +319,7 @@ $all_tags = sc_get_all_tags();
     </p>
 </div>
 <?php endif; ?>
+
         <div class="sc-form-group">
             <label><?php echo esc_html__('Tags', 'science-communities'); ?></label>
             <div class="sc-tags-selector">
@@ -326,6 +343,39 @@ $all_tags = sc_get_all_tags();
         </div>
     </form>
 </div>
+
+<?php if (sc_is_superadmin()): ?>
+<div class="sc-form-section">
+    <h3><?php _e('Assign user to this community', 'science-communities'); ?></h3>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <input type="hidden" name="action" value="sc_assign_user_to_community">
+        <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
+        <?php wp_nonce_field('sc_assign_user_to_community', 'sc_assign_user_to_community_nonce'); ?>
+        <select name="user_id" required>
+            <option value=""><?php _e('Select user', 'science-communities'); ?></option>
+            <?php foreach (get_users(array('orderby' => 'display_name', 'order' => 'ASC')) as $user): ?>
+                <option value="<?php echo esc_attr($user->ID); ?>">
+                    <?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" class="sc-submit-button"><?php _e('Assign', 'science-communities'); ?></button>
+    </form>
+</div>
+<?php endif; ?>
+
+<?php if (!sc_is_superadmin()): ?>
+<div class="sc-form-section">
+    <h3><?php _e('Contact Superadmin', 'science-communities'); ?></h3>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <input type="hidden" name="action" value="sc_submit_contact_request">
+        <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
+        <?php wp_nonce_field('sc_contact_request', 'sc_contact_request_nonce'); ?>
+        <textarea name="request_message" rows="4" required placeholder="<?php esc_attr_e('Describe your issue…', 'science-communities'); ?>"></textarea>
+        <button type="submit" class="sc-submit-button"><?php _e('Send request', 'science-communities'); ?></button>
+    </form>
+</div>
+<?php endif; ?>
 <script>
 jQuery(document).ready(function($) {
     const formHandler = {

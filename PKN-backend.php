@@ -375,6 +375,35 @@ function sc_create_tables() {
 
     // 9. Statistics/events table
     sc_create_statistics_table();
+
+    // 10. Community galleries
+    $sql = "CREATE TABLE {$wpdb->prefix}science_community_images (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        community_id VARCHAR(5) NOT NULL,
+        category VARCHAR(32) NOT NULL,
+        image_url TEXT NOT NULL,
+        sort_order int(11) NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY community_id (community_id),
+        KEY category (category)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    // 11. Contact requests from community admins to superadmins
+    $sql = "CREATE TABLE {$wpdb->prefix}science_contact_requests (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        community_id VARCHAR(5) NOT NULL,
+        requester_id bigint(20) UNSIGNED NOT NULL,
+        message TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY community_id (community_id),
+        KEY requester_id (requester_id),
+        KEY status (status)
+    ) $charset_collate;";
+    dbDelta($sql);
 }
 
 /**
@@ -500,8 +529,7 @@ function sc_admin_panel_shortcode($atts) {
             include SC_PLUGIN_PATH . 'templates/edit-community.php';
         }
     } elseif ($action === 'manage-users' && sc_is_superadmin()) {
-        // TODO: Add user management template if needed
-        echo '<p>User management page - to be implemented</p>';
+        include SC_PLUGIN_PATH . 'templates/manage-users.php';
     } else {
         // Default: show community list
         include SC_PLUGIN_PATH . 'templates/admin-panel.php';
@@ -813,7 +841,10 @@ function sc_handle_edit_community() {
         'tiktok' => esc_url_raw($_POST['tiktok']),
         'discord' => esc_url_raw($_POST['discord']),
         'logo' => esc_url_raw($_POST['logo']),
-        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array()
+        'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
+        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
+        'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
+        'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
     );
 
     $result = sc_save_community($data);
@@ -839,6 +870,58 @@ function sc_handle_edit_community() {
 }
 add_action('admin_post_sc_edit_community', 'sc_handle_edit_community');
 add_action('admin_post_nopriv_sc_edit_community', 'sc_handle_edit_community');
+
+function sc_handle_submit_contact_request() {
+    if (!is_user_logged_in()) {
+        wp_die('Login required');
+    }
+
+    if (!isset($_POST['sc_contact_request_nonce']) || !wp_verify_nonce($_POST['sc_contact_request_nonce'], 'sc_contact_request')) {
+        wp_die('Security check failed');
+    }
+
+    $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
+    $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
+
+    if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id) || sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    sc_create_contact_request($community_id, $message, get_current_user_id());
+
+    $redirect_url = add_query_arg(
+        array('action' => 'edit', 'id' => $community_id, 'contact_sent' => '1'),
+        sc_get_admin_page_url()
+    );
+    wp_safe_redirect($redirect_url);
+    exit;
+}
+add_action('admin_post_sc_submit_contact_request', 'sc_handle_submit_contact_request');
+
+function sc_handle_assign_user_to_community() {
+    if (!is_user_logged_in() || !sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    if (!isset($_POST['sc_assign_user_to_community_nonce']) || !wp_verify_nonce($_POST['sc_assign_user_to_community_nonce'], 'sc_assign_user_to_community')) {
+        wp_die('Security check failed');
+    }
+
+    $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
+    $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
+
+    if ($community_id && $user_id) {
+        sc_assign_community_admin($user_id, $community_id);
+    }
+
+    $redirect_url = add_query_arg(
+        array('action' => 'edit', 'id' => $community_id, 'assigned' => '1'),
+        sc_get_admin_page_url()
+    );
+    wp_safe_redirect($redirect_url);
+    exit;
+}
+add_action('admin_post_sc_assign_user_to_community', 'sc_handle_assign_user_to_community');
 
 /**
  * Add WordPress admin menu for PKN Backend
@@ -902,8 +985,34 @@ function sc_add_admin_menu() {
         'pkn-community-statistics',
         'sc_render_statistics_page'
     );
+
+    add_submenu_page(
+        'pkn-communities',
+        'User Management',
+        'User Management',
+        'manage_options',
+        'pkn-user-management',
+        'sc_render_user_management_page'
+    );
+
+    add_submenu_page(
+        'pkn-communities',
+        'Contact Requests',
+        'Contact Requests',
+        'manage_options',
+        'pkn-contact-requests',
+        'sc_render_contact_requests_page'
+    );
 }
 add_action('admin_menu', 'sc_add_admin_menu');
+
+function sc_render_user_management_page() {
+    include SC_PLUGIN_PATH . 'templates/manage-users.php';
+}
+
+function sc_render_contact_requests_page() {
+    include SC_PLUGIN_PATH . 'templates/contact-requests.php';
+}
 
 /**
  * Handle bulk delete action

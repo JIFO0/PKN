@@ -57,6 +57,8 @@ $social_links = array(
 
 // Check if user can edit this community
 $can_edit = sc_user_can_edit_community($community_id);
+$event_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'event') : array();
+$team_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'team') : array();
 
 ?>
 
@@ -118,6 +120,28 @@ $can_edit = sc_user_can_edit_community($community_id);
             <?php if (!empty($community['description'])): ?>
             <div class="sc-detail-description">
                 <?php echo wp_kses_post($community['description']); ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($event_images)): ?>
+            <div class="sc-detail-gallery">
+                <h2><?php _e('Event photos', 'science-communities'); ?></h2>
+                <div class="sc-detail-gallery-grid">
+                    <?php foreach ($event_images as $image): ?>
+                        <img src="<?php echo esc_url($image); ?>" alt="<?php esc_attr_e('Event photo', 'science-communities'); ?>">
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($team_images)): ?>
+            <div class="sc-detail-gallery">
+                <h2><?php _e('Team photos', 'science-communities'); ?></h2>
+                <div class="sc-detail-gallery-grid">
+                    <?php foreach ($team_images as $image): ?>
+                        <img src="<?php echo esc_url($image); ?>" alt="<?php esc_attr_e('Team photo', 'science-communities'); ?>">
+                    <?php endforeach; ?>
+                </div>
             </div>
             <?php endif; ?>
         </div>
