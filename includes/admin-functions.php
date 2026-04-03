@@ -157,6 +157,11 @@ function sc_save_community($data) {
         'is_archived' => isset($data['is_archived']) ? intval((bool) $data['is_archived']) : 0,
     );
 
+    // Archiving can only be edited by superadmins.
+    if (!sc_is_superadmin()) {
+        unset($sanitized['is_archived']);
+    }
+
     // Check if we're updating an existing community
     if (!empty($data['community_id'])) {
         $community_id = sanitize_text_field($data['community_id']);
@@ -182,6 +187,13 @@ function sc_save_community($data) {
             sc_update_community_tags($community_id, $data['tags']);
         }
 
+        if (isset($data['event_images']) && is_array($data['event_images'])) {
+            sc_save_community_images($community_id, 'event', $data['event_images']);
+        }
+        if (isset($data['team_images']) && is_array($data['team_images'])) {
+            sc_save_community_images($community_id, 'team', $data['team_images']);
+        }
+
         return true;
     }
 
@@ -205,6 +217,13 @@ function sc_save_community($data) {
     // Add tags
     if (isset($data['tags']) && is_array($data['tags'])) {
         sc_update_community_tags($community_id, $data['tags']);
+    }
+
+    if (isset($data['event_images']) && is_array($data['event_images'])) {
+        sc_save_community_images($community_id, 'event', $data['event_images']);
+    }
+    if (isset($data['team_images']) && is_array($data['team_images'])) {
+        sc_save_community_images($community_id, 'team', $data['team_images']);
     }
 
     return true;
@@ -613,3 +632,67 @@ function sc_display_community_admins_table() {
     echo '</tbody></table>';
 }
 
+function sc_get_community_images($community_id, $category = '') {
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_community_images';
+
+    if ($category) {
+        return $wpdb->get_col($wpdb->prepare(
+            "SELECT image_url FROM $table WHERE community_id = %s AND category = %s ORDER BY sort_order ASC, id ASC",
+            $community_id,
+            $category
+        ));
+    }
+
+    return $wpdb->get_results($wpdb->prepare(
+        "SELECT category, image_url FROM $table WHERE community_id = %s ORDER BY category ASC, sort_order ASC, id ASC",
+        $community_id
+    ), ARRAY_A);
+}
+
+function sc_save_community_images($community_id, $category, $image_urls) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_community_images';
+
+    $community_id = sanitize_text_field($community_id);
+    $category = sanitize_key($category);
+    $image_urls = array_values(array_filter(array_map('esc_url_raw', (array) $image_urls)));
+
+    $wpdb->delete(
+        $table,
+        array('community_id' => $community_id, 'category' => $category),
+        array('%s', '%s')
+    );
+
+    foreach ($image_urls as $index => $url) {
+        if (empty($url)) {
+            continue;
+        }
+        $wpdb->insert(
+            $table,
+            array(
+                'community_id' => $community_id,
+                'category' => $category,
+                'image_url' => $url,
+                'sort_order' => $index,
+            ),
+            array('%s', '%s', '%s', '%d')
+        );
+    }
+}
+
+function sc_create_contact_request($community_id, $message, $requester_id) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_contact_requests';
+
+    return $wpdb->insert(
+        $table,
+        array(
+            'community_id' => sanitize_text_field($community_id),
+            'message' => sanitize_textarea_field($message),
+            'requester_id' => intval($requester_id),
+            'status' => 'open',
+        ),
+        array('%s', '%s', '%d', '%s')
+    );
+}

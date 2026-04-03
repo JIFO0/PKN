@@ -1,7 +1,7 @@
-﻿<?php
+<?php
 /**
- * Template for managing community admin users
- * Only accessible to superadmins
+ * Template for managing plugin users
+ * Superadmins only
  */
 
 if (!defined('ABSPATH')) exit;
@@ -11,60 +11,148 @@ if (!sc_is_superadmin()) {
     return;
 }
 
-// Handle adding new admin
+$success_message = '';
+$error_message = '';
+$communities = sc_get_editable_communities();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
-    if (wp_verify_nonce($_POST['sc_add_admin_nonce'], 'sc_add_admin')) {
-        $username = sanitize_user($_POST['username']);
-        $email = sanitize_email($_POST['email']);
-        $community_id = sanitize_text_field($_POST['community_id']);
-        
-        // Create user or get existing
-        $user_id = username_exists($username);
-        if (!$user_id && email_exists($email) == false) {
-            $password = wp_generate_password();
-            $user_id = wp_create_user($username, $password, $email);
-            wp_new_user_notification($user_id, null, 'both');
-        } elseif (!$user_id) {
-            $user_id = email_exists($email);
-        }
-        
-        if ($user_id) {
-            sc_assign_community_admin($user_id, $community_id);
-            $success_message = __('Admin added successfully!', 'science-communities');
+    if (!isset($_POST['sc_add_admin_nonce']) || !wp_verify_nonce($_POST['sc_add_admin_nonce'], 'sc_add_admin')) {
+        $error_message = __('Security check failed.', 'science-communities');
+    } else {
+        $username = sanitize_user($_POST['username'] ?? '');
+        $email = sanitize_email($_POST['email'] ?? '');
+        $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+
+        if (empty($username) || empty($email) || empty($community_id)) {
+            $error_message = __('All fields are required.', 'science-communities');
+        } else {
+            $user_id = username_exists($username);
+            if (!$user_id && email_exists($email) == false) {
+                $password = wp_generate_password();
+                $user_id = wp_create_user($username, $password, $email);
+                if (!is_wp_error($user_id)) {
+                    $user = get_user_by('id', $user_id);
+                    if ($user) {
+                        $user->add_role('subscriber');
+                    }
+                    wp_new_user_notification($user_id, null, 'both');
+                }
+            } elseif (!$user_id) {
+                $user_id = email_exists($email);
+            }
+
+            if (is_wp_error($user_id)) {
+                $error_message = $user_id->get_error_message();
+            } elseif ($user_id) {
+                sc_assign_community_admin($user_id, $community_id);
+                $success_message = __('User saved and assigned successfully.', 'science-communities');
+            }
         }
     }
 }
 
-$communities = sc_get_editable_communities();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv'])) {
+    if (!isset($_POST['sc_import_admin_csv_nonce']) || !wp_verify_nonce($_POST['sc_import_admin_csv_nonce'], 'sc_import_admin_csv')) {
+        $error_message = __('Security check failed.', 'science-communities');
+    } elseif (empty($_FILES['users_csv']['tmp_name'])) {
+        $error_message = __('Please provide a CSV file.', 'science-communities');
+    } else {
+        $handle = fopen($_FILES['users_csv']['tmp_name'], 'r');
+        $row = 0;
+        $created_count = 0;
+        $assigned_count = 0;
+        while (($data = fgetcsv($handle)) !== false) {
+            $row++;
+            if ($row === 1 && isset($data[0]) && strtolower(trim($data[0])) === 'username') {
+                continue;
+            }
+
+            $username = sanitize_user($data[0] ?? '');
+            $email = sanitize_email($data[1] ?? '');
+            $community_id = sanitize_text_field($data[2] ?? '');
+
+            if (empty($username) || empty($email) || empty($community_id)) {
+                continue;
+            }
+
+            $user_id = username_exists($username);
+            if (!$user_id && email_exists($email) == false) {
+                $password = wp_generate_password();
+                $user_id = wp_create_user($username, $password, $email);
+                if (!is_wp_error($user_id)) {
+                    $created_count++;
+                    $user = get_user_by('id', $user_id);
+                    if ($user) {
+                        $user->add_role('subscriber');
+                    }
+                }
+            } elseif (!$user_id) {
+                $user_id = email_exists($email);
+            }
+
+            if ($user_id && !is_wp_error($user_id)) {
+                if (sc_assign_community_admin($user_id, $community_id)) {
+                    $assigned_count++;
+                }
+            }
+        }
+        fclose($handle);
+        $success_message = sprintf(__('CSV processed. Created: %d, Assigned: %d', 'science-communities'), $created_count, $assigned_count);
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_user'])) {
+    if (!isset($_POST['sc_delete_user_nonce']) || !wp_verify_nonce($_POST['sc_delete_user_nonce'], 'sc_delete_user')) {
+        $error_message = __('Security check failed.', 'science-communities');
+    } else {
+        $user_id = intval($_POST['user_id'] ?? 0);
+        $user = get_user_by('id', $user_id);
+        if ($user) {
+            $roles = (array) $user->roles;
+            $is_superadmin = in_array('superadmin', $roles, true);
+            $is_page_admin = false;
+            foreach ($roles as $role) {
+                if (substr($role, -6) === '-admin') {
+                    $is_page_admin = true;
+                    break;
+                }
+            }
+
+            if ($is_superadmin || $is_page_admin) {
+                $error_message = __('This user cannot be deleted (superadmin or page admin).', 'science-communities');
+            } else {
+                require_once ABSPATH . 'wp-admin/includes/user.php';
+                wp_delete_user($user_id);
+                $success_message = __('User deleted.', 'science-communities');
+            }
+        }
+    }
+}
+
+$users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 ?>
 
 <div class="sc-manage-users">
-    <h1><?php _e('Manage Community Admins', 'science-communities'); ?></h1>
-    
+    <h1><?php _e('User Management', 'science-communities'); ?></h1>
+
     <?php if (!empty($success_message)): ?>
-    <div class="sc-notice sc-notice-success"><?php echo esc_html($success_message); ?></div>
+    <div class="notice notice-success"><p><?php echo esc_html($success_message); ?></p></div>
     <?php endif; ?>
-    
+
+    <?php if (!empty($error_message)): ?>
+    <div class="notice notice-error"><p><?php echo esc_html($error_message); ?></p></div>
+    <?php endif; ?>
+
     <form method="post" class="sc-add-admin-form">
         <?php wp_nonce_field('sc_add_admin', 'sc_add_admin_nonce'); ?>
         <input type="hidden" name="sc_add_admin" value="1">
-        
-        <h2><?php _e('Add New Community Admin', 'science-communities'); ?></h2>
-        
-        <div class="sc-form-group">
-            <label for="username"><?php _e('Username', 'science-communities'); ?></label>
-            <input type="text" name="username" required>
-            <small><?php _e('If user exists, they will be assigned to the community', 'science-communities'); ?></small>
-        </div>
-        
-        <div class="sc-form-group">
-            <label for="email"><?php _e('Email', 'science-communities'); ?></label>
-            <input type="email" name="email" required>
-        </div>
-        
-        <div class="sc-form-group">
-            <label for="community_id"><?php _e('Community', 'science-communities'); ?></label>
-            <select name="community_id" required>
+        <h2><?php _e('Create user manually', 'science-communities'); ?></h2>
+
+        <p><input type="text" name="username" placeholder="Username" required></p>
+        <p><input type="email" name="email" placeholder="Email" required></p>
+        <p>
+            <input type="text" id="sc-community-search" placeholder="Search community..." style="width: 320px;">
+            <select name="community_id" id="sc-community-select" required>
                 <option value=""><?php _e('Select Community', 'science-communities'); ?></option>
                 <?php foreach ($communities as $community): ?>
                 <option value="<?php echo esc_attr($community['community_id']); ?>">
@@ -72,15 +160,65 @@ $communities = sc_get_editable_communities();
                 </option>
                 <?php endforeach; ?>
             </select>
-        </div>
-        
-        <button type="submit" class="sc-submit-button">
-            <?php _e('Add Admin', 'science-communities'); ?>
-        </button>
+        </p>
+
+        <button type="submit" class="button button-primary"><?php _e('Create + Assign', 'science-communities'); ?></button>
     </form>
-    
+
     <hr>
-    
-    <h2><?php _e('Existing Community Admins', 'science-communities'); ?></h2>
-    <?php sc_display_community_admins_table(); ?>
+
+    <form method="post" enctype="multipart/form-data">
+        <?php wp_nonce_field('sc_import_admin_csv', 'sc_import_admin_csv_nonce'); ?>
+        <input type="hidden" name="sc_import_admin_csv" value="1">
+        <h2><?php _e('Import users from CSV', 'science-communities'); ?></h2>
+        <p><?php _e('CSV format: username,email,community_id', 'science-communities'); ?></p>
+        <p><input type="file" name="users_csv" accept=".csv" required></p>
+        <button type="submit" class="button"><?php _e('Import CSV', 'science-communities'); ?></button>
+    </form>
+
+    <hr>
+
+    <h2><?php _e('Users', 'science-communities'); ?></h2>
+    <table class="wp-list-table widefat striped">
+        <thead>
+            <tr>
+                <th><?php _e('User', 'science-communities'); ?></th>
+                <th><?php _e('Roles', 'science-communities'); ?></th>
+                <th><?php _e('Action', 'science-communities'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($users as $user): ?>
+            <tr>
+                <td><?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?></td>
+                <td><?php echo esc_html(implode(', ', (array) $user->roles)); ?></td>
+                <td>
+                    <form method="post" onsubmit="return confirm('Delete this user?');">
+                        <?php wp_nonce_field('sc_delete_user', 'sc_delete_user_nonce'); ?>
+                        <input type="hidden" name="sc_delete_user" value="1">
+                        <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>">
+                        <button type="submit" class="button"><?php _e('Delete', 'science-communities'); ?></button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('sc-community-search');
+    const select = document.getElementById('sc-community-select');
+
+    if (!searchInput || !select) return;
+
+    searchInput.addEventListener('input', function() {
+        const term = this.value.toLowerCase();
+        Array.from(select.options).forEach((opt, index) => {
+            if (index === 0) return;
+            opt.hidden = term && !opt.text.toLowerCase().includes(term);
+        });
+    });
+});
+</script>

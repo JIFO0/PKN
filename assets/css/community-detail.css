@@ -341,6 +341,24 @@
     text-align: right;
 }
 
+.sc-detail-gallery {
+    margin-top: 24px;
+}
+
+.sc-detail-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.sc-detail-gallery-grid img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
