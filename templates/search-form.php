@@ -24,10 +24,11 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
     <div class="container">
         <!-- Header Section -->
         <div class="sc-search-header">
-            <h1 class="underline">Wyszukaj koło naukowe</h1>
+            <h1 class="underline"><?php echo esc_html(sc_t('search_community_heading')); ?></h1>
             <p class="sc-search-description">
-                Przeglądaj bazę kół naukowych Uniwersytetu Gdańskiego. Użyj filtrów, aby znaleźć koło odpowiadające Twoim zainteresowaniom.
+                <?php echo esc_html(sc_t('search_community_description')); ?>
             </p>
+            <?php sc_render_lang_toggle(); ?>
         </div>
 
         <!-- Search Form -->
@@ -48,11 +49,11 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                             name="sc_search" 
                             id="sc-search-input" 
                             value="<?php echo esc_attr($search_query); ?>" 
-                            placeholder="Wpisz nazwę koła naukowego..."
-                            aria-label="<?php esc_attr_e('Wyszukaj', 'science-communities'); ?>"
+                            placeholder="<?php echo esc_attr(sc_t('search_input_placeholder')); ?>"
+                            aria-label="<?php echo esc_attr(sc_t('search_label')); ?>"
                         >
                         <button type="submit" class="sc-search-button">
-                            <span>Szukaj</span>
+                            <span><?php echo esc_html(sc_t('search_button')); ?></span>
                         </button>
                     </div>
                 </div>
@@ -63,7 +64,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                         </svg>
-                        <span>Filtry zaawansowane</span>
+                        <span><?php echo esc_html(sc_t('advanced_filters')); ?></span>
                         <svg class="sc-toggle-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
@@ -79,7 +80,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                                 <polyline points="9 22 9 12 15 12 15 22"></polyline>
                             </svg>
-                            <span>Wydział</span>
+                            <span><?php echo esc_html(sc_t('faculty_label')); ?></span>
                         </label>
                         <div class="sc-filter-options">
                             <?php foreach ($all_faculties as $faculty): ?>
@@ -106,7 +107,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
                                 <line x1="7" y1="7" x2="7.01" y2="7"></line>
                             </svg>
-                            <span>Tematyka</span>
+                            <span><?php echo esc_html(sc_t('topic_label')); ?></span>
                         </label>
                         <div class="sc-filter-options sc-tags-grid">
                             <?php foreach ($all_tags as $tag): ?>
@@ -133,11 +134,11 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
-                            Wyczyść filtry
+                            <?php echo esc_html(sc_t('clear_filters')); ?>
                         </button>
                         <?php endif; ?>
                         <button type="submit" class="sc-apply-filters">
-                            Zastosuj filtry
+                            <?php echo esc_html(sc_t('apply_filters')); ?>
                         </button>
                     </div>
                 </div>
@@ -145,7 +146,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                 <!-- Active Filters Display -->
                 <?php if (!empty($selected_tags) || !empty($selected_faculties) || !empty($search_query)): ?>
                 <div class="sc-active-filters">
-                    <div class="sc-active-filters-label">Aktywne filtry:</div>
+                    <div class="sc-active-filters-label"><?php echo esc_html(sc_t('active_filters')); ?></div>
                     <div class="sc-active-filters-list">
                         <?php if (!empty($search_query)): ?>
                         <span class="sc-active-filter-badge">
@@ -181,7 +182,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
 
         <!-- Quick Links -->
         <div class="sc-quick-links">
-            <h3>Popularne kategorie:</h3>
+            <h3><?php echo esc_html(sc_t('popular_categories')); ?></h3>
             <div class="sc-quick-links-grid">
                 <?php 
                 $popular_tags = array_slice($all_tags, 0, 6);

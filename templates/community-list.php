@@ -118,8 +118,9 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
 
 <div class="sc-list-container">
     <div class="sc-results-header sc-list-header">
-        <h1 class="sc-results-title"><?php _e('Science Communities Directory', 'science-communities'); ?></h1>
-        <p class="sc-list-header-description"><?php _e('Browse all science communities and refine the list using filters below.', 'science-communities'); ?></p>
+        <h1 class="sc-results-title"><?php echo esc_html(sc_t('directory_title')); ?></h1>
+        <p class="sc-list-header-description"><?php echo esc_html(sc_t('directory_description')); ?></p>
+        <?php sc_render_lang_toggle(); ?>
     </div>
 
     <div class="sc-list-filters">
@@ -131,14 +132,14 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <?php _e('Search', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('search_label')); ?>
                 </label>
                 <input 
                     type="text" 
                     name="filter_search" 
                     class="sc-filter-search"
                     value="<?php echo esc_attr($search_term); ?>" 
-                    placeholder="<?php esc_attr_e('Search communities...', 'science-communities'); ?>"
+                    placeholder="<?php echo esc_attr(sc_t('search_communities_placeholder')); ?>"
                 >
             </div>
 
@@ -148,20 +149,20 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 6h18M7 12h10M10 18h4"></path>
                     </svg>
-                    <?php _e('Sort By', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('sort_by')); ?>
                 </label>
                 <select name="sort" class="sc-filter-select">
                     <option value="name_asc" <?php selected($sort_order, 'name_asc'); ?>>
-                        <?php _e('Name (A-Z)', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('sort_name_asc')); ?>
                     </option>
                     <option value="name_desc" <?php selected($sort_order, 'name_desc'); ?>>
-                        <?php _e('Name (Z-A)', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('sort_name_desc')); ?>
                     </option>
                     <option value="newest" <?php selected($sort_order, 'newest'); ?>>
-                        <?php _e('Newest First', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('sort_newest')); ?>
                     </option>
                     <option value="oldest" <?php selected($sort_order, 'oldest'); ?>>
-                        <?php _e('Oldest First', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('sort_oldest')); ?>
                     </option>
                 </select>
             </div>
@@ -173,17 +174,17 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
-                    <?php _e('Status', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('status')); ?>
                 </label>
                 <select name="status" class="sc-filter-select">
                     <option value="all" <?php selected($status_filter, 'all'); ?>>
-                        <?php _e('Active Communities', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('status_active_communities')); ?>
                     </option>
                     <option value="active" <?php selected($status_filter, 'active'); ?>>
-                        <?php _e('Active Only', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('status_active_only')); ?>
                     </option>
                     <option value="archived" <?php selected($status_filter, 'archived'); ?>>
-                        <?php _e('Archived', 'science-communities'); ?>
+                        <?php echo esc_html(sc_t('status_archived')); ?>
                     </option>
                 </select>
             </div>
@@ -195,7 +196,7 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
                         <line x1="7" y1="7" x2="7.01" y2="7"></line>
                     </svg>
-                    <?php _e('Filter by Tags', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('filter_by_tags')); ?>
                 </label>
                 <div class="sc-filter-tags">
                     <?php foreach ($all_tags as $tag): ?>
@@ -220,7 +221,7 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                    <?php _e('Filter by Faculty', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('filter_by_faculty')); ?>
                 </label>
                 <div class="sc-filter-faculties">
                     <?php foreach ($all_faculties as $faculty): ?>
@@ -240,10 +241,10 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
 
             <div class="sc-filter-actions">
                 <button type="submit" class="sc-filter-apply">
-                    <?php _e('Apply Filters', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('apply_filters')); ?>
                 </button>
                 <button type="button" class="sc-filter-clear" id="sc-filter-clear">
-                    <?php _e('Clear All', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('clear_all')); ?>
                 </button>
             </div>
         </form>
@@ -253,8 +254,8 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                 <?php 
                 printf(
                     _n(
-                        '%s community found', 
-                        '%s communities found', 
+                        sc_t('community_found'), 
+                        sc_t('communities_found'), 
                         count($communities), 
                         'science-communities'
                     ), 
@@ -271,8 +272,8 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                 if ($status_filter !== 'all') $filter_count++;
                 printf(
                     _n(
-                        '%s active filter', 
-                        '%s active filters', 
+                        sc_t('active_filter'), 
+                        sc_t('active_filters_count'), 
                         $filter_count, 
                         'science-communities'
                     ), 
@@ -291,8 +292,8 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
             <line x1="12" y1="8" x2="12" y2="12"></line>
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
         </svg>
-        <h3><?php _e('No communities found', 'science-communities'); ?></h3>
-        <p><?php _e('Try adjusting your filters or search term.', 'science-communities'); ?></p>
+        <h3><?php echo esc_html(sc_t('no_communities_found')); ?></h3>
+        <p><?php echo esc_html(sc_t('adjust_filters_hint')); ?></p>
     </div>
     <?php else: ?>
     <div class="sc-list-grid">
@@ -303,7 +304,7 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
             <?php if (!empty($community->logo)): ?>
             <div class="sc-card-logo">
                 <img src="<?php echo esc_url($community->logo); ?>" 
-                     alt="<?php echo esc_attr(sprintf(__('Logo of %s', 'science-communities'), $community->name)); ?>">
+                     alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community->name)); ?>">
             </div>
             <?php endif; ?>
             
@@ -335,7 +336,7 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
             <div class="sc-card-footer">
                 <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>" 
                    class="sc-card-link">
-                    <?php _e('View Details', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('view_details')); ?>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>
