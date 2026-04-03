@@ -23,7 +23,10 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
     <div class="sc-forum-sidebar">
         <div class="sc-forum-sidebar-header">
             <h2><?php esc_html_e('Forum', 'science-communities'); ?></h2>
-            <button type="button" class="button sc-forum-refresh-threads"><?php esc_html_e('Refresh', 'science-communities'); ?></button>
+            <div class="sc-forum-header-actions">
+                <?php sc_render_lang_toggle(); ?>
+                <button type="button" class="button sc-forum-refresh-threads"><?php esc_html_e('Refresh', 'science-communities'); ?></button>
+            </div>
         </div>
 
         <div class="sc-thread-pagination">

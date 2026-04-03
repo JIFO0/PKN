@@ -643,6 +643,7 @@ function sc_enqueue_assets() {
     )) {
         wp_enqueue_style('sc-admin-panel-style', SC_PLUGIN_URL . 'assets/css/admin-panel.css', array('sc-ug-globals'), SC_PLUGIN_VERSION);
         wp_enqueue_script('sc-admin-script', SC_PLUGIN_URL . 'assets/js/admin-script.js', array('jquery'), SC_PLUGIN_VERSION, true);
+        wp_enqueue_script('sc-layout-fixes', SC_PLUGIN_URL . 'assets/js/layout-fixes.js', array(), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/js/layout-fixes.js'), true);
         wp_localize_script('sc-admin-script', 'scienceCommunitiesData', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('science_communities_nonce')

@@ -26,6 +26,12 @@
     margin-bottom: 12px;
 }
 
+
+.sc-forum-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .sc-forum-create-thread {
     margin: 18px 0 0;
     display: flex;
