@@ -138,8 +138,8 @@ function sc_ensure_required_pages() {
             'content' => '[science_communities_results]'
         ),
         'science_community_detail' => array(
-            'title' => 'PKN Details',
-            'slug' => 'details',
+            'title' => 'PKN Detail',
+            'slug' => 'detail',
             'content' => '[science_community_detail]'
         ),
         'science_communities_admin' => array(
@@ -560,6 +560,9 @@ function sc_enqueue_assets() {
         }
         if (file_exists(SC_PLUGIN_PATH . 'assets/css/search.css')) {
             wp_enqueue_style('sc-list', SC_PLUGIN_URL . 'assets/css/community-list.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/community-list.css'));
+        }
+        if (file_exists(SC_PLUGIN_PATH . 'assets/css/community-detail.css')) {
+            wp_enqueue_style('sc-detail', SC_PLUGIN_URL . 'assets/css/community-detail.css', array('sc-ug-globals'), SC_PLUGIN_VERSION . '.' . filemtime(SC_PLUGIN_PATH . 'assets/css/community-detail.css'));
         }
     }
 }
