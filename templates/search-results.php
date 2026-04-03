@@ -28,18 +28,19 @@ $search_page_url = sc_get_page_url_by_shortcode('science_communities_search', ho
             <?php 
             if (!empty($search_query)) {
                 printf(
-                    __('Search results for "%s"', 'science-communities'), 
+                    sc_t('search_results_for'), 
                     esc_html($search_query)
                 );
             } else {
-                _e('All Science Communities', 'science-communities');
+                echo esc_html(sc_t('all_science_communities'));
             }
             ?>
         </h1>
+        <?php sc_render_lang_toggle(); ?>
         
         <?php if (!empty($selected_tags)): ?>
         <div class="sc-active-filters">
-            <span class="sc-filter-label"><?php _e('Filtered by:', 'science-communities'); ?></span>
+            <span class="sc-filter-label"><?php echo esc_html(sc_t('filtered_by')); ?></span>
             <?php foreach ($selected_tags as $tag): ?>
             <span class="sc-active-tag"><?php echo esc_html($tag); ?></span>
             <?php endforeach; ?>
@@ -50,8 +51,8 @@ $search_page_url = sc_get_page_url_by_shortcode('science_communities_search', ho
             <?php 
             printf(
                 _n(
-                    '%s community found', 
-                    '%s communities found', 
+                    sc_t('community_found'), 
+                    sc_t('communities_found'), 
                     count($communities), 
                     'science-communities'
                 ), 
@@ -61,14 +62,14 @@ $search_page_url = sc_get_page_url_by_shortcode('science_communities_search', ho
         </div>
         
         <a href="<?php echo esc_url($search_page_url); ?>" class="sc-new-search">
-            <?php _e('New Search', 'science-communities'); ?>
+            <?php echo esc_html(sc_t('new_search')); ?>
         </a>
     </div>
 
     <?php if (empty($communities)): ?>
     <div class="sc-no-results">
-        <p><?php _e('No science communities found matching your search criteria.', 'science-communities'); ?></p>
-        <p><?php _e('Try using different keywords or removing some filters.', 'science-communities'); ?></p>
+        <p><?php echo esc_html(sc_t('no_search_results')); ?></p>
+        <p><?php echo esc_html(sc_t('try_different_keywords')); ?></p>
     </div>
     <?php else: ?>
     <div class="sc-results-list">
@@ -78,7 +79,7 @@ $search_page_url = sc_get_page_url_by_shortcode('science_communities_search', ho
                 <?php if (!empty($community['logo'])): ?>
                 <div class="sc-result-logo">
                     <img src="<?php echo esc_url($community['logo']); ?>" 
-                         alt="<?php echo esc_attr(sprintf(__('Logo of %s', 'science-communities'), $community['name'])); ?>">
+                         alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community['name'])); ?>">
                 </div>
                 <?php endif; ?>
                 
@@ -106,7 +107,7 @@ $search_page_url = sc_get_page_url_by_shortcode('science_communities_search', ho
             <div class="sc-result-actions">
                 <a href="<?php echo esc_url(add_query_arg('id', $community['id'], $detail_page_url)); ?>"
                    class="sc-view-details" 
-                   aria-label="<?php echo esc_attr(sprintf(__('View details of %s', 'science-communities'), $community['name'])); ?>">
+                   aria-label="<?php echo esc_attr(sprintf(sc_t('view_details_of'), $community['name'])); ?>">
                     <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                         <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
                     </svg>

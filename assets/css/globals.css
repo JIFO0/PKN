@@ -423,3 +423,26 @@ select {
 
 /* Fullwidth Utility */
 .w-100 { width: 100% !important; }
+/* Language Toggle */
+.sc-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--ug-spacing-sm);
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--ug-blue);
+  border-radius: var(--ug-radius-pill);
+  color: var(--ug-blue);
+  background: var(--ug-white);
+  font-size: 0.75rem;
+  font-weight: var(--ug-font-weight-bold);
+  text-decoration: none;
+  letter-spacing: 0.06em;
+  transition: background-color var(--ug-transition-fast), color var(--ug-transition-fast);
+}
+
+.sc-lang-toggle:hover,
+.sc-lang-toggle:focus {
+  background-color: var(--ug-blue);
+  color: var(--ug-white);
+}

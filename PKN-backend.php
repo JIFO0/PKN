@@ -20,6 +20,7 @@ define('SC_VERSION', '1.0.0');
 
 // Include required files
 require_once SC_PLUGIN_PATH . 'includes/functions.php';
+require_once SC_PLUGIN_PATH . 'includes/lang.php';
 require_once SC_PLUGIN_PATH . 'includes/admin-functions.php';
 require_once SC_PLUGIN_PATH . 'includes/auth.php';
 require_once SC_PLUGIN_PATH . 'includes/error-logger.php';
