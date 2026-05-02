@@ -22,13 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
         $username = sanitize_user($_POST['username'] ?? '');
         $email = sanitize_email($_POST['email'] ?? '');
         $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+        $password_raw = (string) ($_POST['password'] ?? '');
 
         if (empty($username) || empty($email) || empty($community_id)) {
             $error_message = __('All fields are required.', 'science-communities');
         } else {
             $user_id = username_exists($username);
             if (!$user_id && email_exists($email) == false) {
-                $password = wp_generate_password();
+                $password = !empty($csv_password) ? $csv_password : wp_generate_password();
                 $user_id = wp_create_user($username, $password, $email);
                 if (!is_wp_error($user_id)) {
                     $user = get_user_by('id', $user_id);
@@ -70,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
             $username = sanitize_user($data[0] ?? '');
             $email = sanitize_email($data[1] ?? '');
             $community_id = sanitize_text_field($data[2] ?? '');
+            $csv_password = isset($data[3]) ? trim((string) $data[3]) : '';
 
             if (empty($username) || empty($email) || empty($community_id)) {
                 continue;
@@ -77,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
 
             $user_id = username_exists($username);
             if (!$user_id && email_exists($email) == false) {
-                $password = wp_generate_password();
+                $password = !empty($password_raw) ? $password_raw : wp_generate_password();
                 $user_id = wp_create_user($username, $password, $email);
                 if (!is_wp_error($user_id)) {
                     $created_count++;
@@ -129,6 +131,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_user'])) {
     }
 }
 
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_manage_assignment'])) {
+    if (!isset($_POST['sc_manage_assignment_nonce']) || !wp_verify_nonce($_POST['sc_manage_assignment_nonce'], 'sc_manage_assignment')) {
+        $error_message = __('Security check failed.', 'science-communities');
+    } else {
+        $selected_user_id = intval($_POST['selected_user_id'] ?? 0);
+        $selected_community_id = sanitize_text_field($_POST['selected_community_id'] ?? '');
+        $action_type = sanitize_text_field($_POST['assignment_action'] ?? '');
+
+        if (!$selected_user_id || empty($selected_community_id) || !in_array($action_type, array('assign', 'unassign'), true)) {
+            $error_message = __('Please select a user, a community, and action.', 'science-communities');
+        } elseif ($action_type === 'assign') {
+            sc_assign_community_admin($selected_user_id, $selected_community_id);
+            $success_message = __('Assignment saved.', 'science-communities');
+        } else {
+            $user = get_user_by('id', $selected_user_id);
+            if ($user) {
+                $user->remove_role($selected_community_id . '-admin');
+                $success_message = __('Assignment removed.', 'science-communities');
+            }
+        }
+    }
+}
+
 $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 ?>
 
@@ -150,6 +176,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 
         <p><input type="text" name="username" placeholder="Username" required></p>
         <p><input type="email" name="email" placeholder="Email" required></p>
+        <p><input type="text" name="password" placeholder="Password (optional)"></p>
         <p>
             <input type="text" id="sc-community-search" placeholder="Search community..." style="width: 320px;">
             <select name="community_id" id="sc-community-select" required>
@@ -171,12 +198,43 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
         <?php wp_nonce_field('sc_import_admin_csv', 'sc_import_admin_csv_nonce'); ?>
         <input type="hidden" name="sc_import_admin_csv" value="1">
         <h2><?php _e('Import users from CSV', 'science-communities'); ?></h2>
-        <p><?php _e('CSV format: username,email,community_id', 'science-communities'); ?></p>
+        <p><?php _e('CSV format: username,email,community_id,password(optional)', 'science-communities'); ?></p>
         <p><input type="file" name="users_csv" accept=".csv" required></p>
         <button type="submit" class="button"><?php _e('Import CSV', 'science-communities'); ?></button>
     </form>
 
     <hr>
+
+
+
+    <hr>
+
+    <form method="post" class="sc-assignment-form">
+        <?php wp_nonce_field('sc_manage_assignment', 'sc_manage_assignment_nonce'); ?>
+        <input type="hidden" name="sc_manage_assignment" value="1">
+        <h2><?php _e('Assign / Unassign community admin', 'science-communities'); ?></h2>
+        <p>
+            <input list="sc-users-list" name="selected_user_id" placeholder="Type/select user ID" required>
+            <datalist id="sc-users-list">
+                <?php foreach ($users as $user): ?>
+                <option value="<?php echo esc_attr($user->ID); ?>"><?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?></option>
+                <?php endforeach; ?>
+            </datalist>
+        </p>
+        <p>
+            <input type="text" id="sc-community-search-2" placeholder="Search community...">
+            <select name="selected_community_id" id="sc-community-select-2" required>
+                <option value=""><?php _e('Select Community', 'science-communities'); ?></option>
+                <?php foreach ($communities as $community): ?>
+                <option value="<?php echo esc_attr($community['community_id']); ?>"><?php echo esc_html($community['name']); ?> (<?php echo esc_html($community['community_id']); ?>)</option>
+                <?php endforeach; ?>
+            </select>
+        </p>
+        <p>
+            <button type="submit" name="assignment_action" value="assign" class="button button-primary"><?php _e('Assign', 'science-communities'); ?></button>
+            <button type="submit" name="assignment_action" value="unassign" class="button"><?php _e('Unassign', 'science-communities'); ?></button>
+        </p>
+    </form>
 
     <h2><?php _e('Users', 'science-communities'); ?></h2>
     <table class="wp-list-table widefat striped">
@@ -208,17 +266,19 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('sc-community-search');
-    const select = document.getElementById('sc-community-select');
-
-    if (!searchInput || !select) return;
-
-    searchInput.addEventListener('input', function() {
-        const term = this.value.toLowerCase();
-        Array.from(select.options).forEach((opt, index) => {
-            if (index === 0) return;
-            opt.hidden = term && !opt.text.toLowerCase().includes(term);
+    function wireSearch(searchId, selectId){
+        const searchInput = document.getElementById(searchId);
+        const select = document.getElementById(selectId);
+        if (!searchInput || !select) return;
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            Array.from(select.options).forEach((opt, index) => {
+                if (index === 0) return;
+                opt.hidden = term && !opt.text.toLowerCase().includes(term);
+            });
         });
-    });
+    }
+    wireSearch('sc-community-search', 'sc-community-select');
+    wireSearch('sc-community-search-2', 'sc-community-select-2');
 });
 </script>
