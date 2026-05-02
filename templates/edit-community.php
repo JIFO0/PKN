@@ -178,6 +178,11 @@ $team_images = sc_get_community_images($community_id, 'team');
             <input type="url" id="sc-facebook" name="facebook" value="<?php echo esc_url($community['facebook']); ?>">
         </div>
 
+
+        <div class="sc-form-group">
+            <button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html__('Pull Data from Facebook', 'science-communities'); ?></button>
+            <p id="sc-facebook-pull-status" style="margin-top:8px;"></p>
+        </div>
         <div class="sc-form-group">
             <label for="sc-instagram"><?php echo esc_html__('Instagram URL', 'science-communities'); ?></label>
             <input type="url" id="sc-instagram" name="instagram" value="<?php echo esc_url($community['instagram']); ?>">

@@ -680,6 +680,19 @@ function sc_enqueue_assets() {
 }
 add_action('wp_enqueue_scripts', 'sc_enqueue_assets');
 
+
+function sc_enqueue_wp_admin_assets($hook) {
+    if (strpos($hook, 'pkn-') === false) {
+        return;
+    }
+    wp_enqueue_script('sc-admin-script', SC_PLUGIN_URL . 'assets/js/admin-script.js', array('jquery'), SC_PLUGIN_VERSION, true);
+    wp_localize_script('sc-admin-script', 'scienceCommunitiesData', array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('science_communities_nonce')
+    ));
+}
+add_action('admin_enqueue_scripts', 'sc_enqueue_wp_admin_assets');
+
 /**
  * Register AJAX handlers
  */
@@ -783,6 +796,86 @@ function sc_ajax_upload_logo() {
     }
 }
 add_action('wp_ajax_sc_upload_logo', 'sc_ajax_upload_logo');
+
+
+/**
+ * Extract facebook page username or id from URL/handle.
+ */
+function sc_extract_facebook_identifier($value) {
+    $value = trim((string) $value);
+    if ($value === '') return '';
+    if (preg_match('#^https?://#i', $value)) {
+        $path = wp_parse_url($value, PHP_URL_PATH);
+        $segments = array_values(array_filter(explode('/', (string) $path)));
+        if (!empty($segments)) {
+            $first = $segments[0];
+            if (in_array(strtolower($first), array('pages','pg')) && !empty($segments[1])) {
+                return sanitize_text_field($segments[1]);
+            }
+            return sanitize_text_field($first);
+        }
+    }
+    return sanitize_text_field(ltrim($value, '@/'));
+}
+
+function sc_fetch_facebook_page_data($facebook_input) {
+    $identifier = sc_extract_facebook_identifier($facebook_input);
+    if ($identifier === '') return new WP_Error('missing_identifier', 'Missing Facebook page URL or username.');
+
+    $cache_key = 'sc_fb_' . md5($identifier);
+    $cached = get_transient($cache_key);
+    if (is_array($cached)) return $cached;
+
+    $token = trim((string) get_option('sc_facebook_app_token', ''));
+    $endpoint = 'https://graph.facebook.com/v19.0/' . rawurlencode($identifier);
+    $query = array('fields' => 'name,about,description,cover,picture.type(large)');
+    if ($token !== '') $query['access_token'] = $token;
+
+    $response = wp_remote_get(add_query_arg($query, $endpoint), array('timeout' => 20));
+    if (is_wp_error($response)) return $response;
+    $code = (int) wp_remote_retrieve_response_code($response);
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+
+    if ($code >= 400 || isset($body['error'])) {
+        $fallback_url = 'https://graph.facebook.com/' . rawurlencode($identifier) . '/picture?type=large&redirect=true';
+        return array('name' => '', 'about' => '', 'description' => '', 'cover_url' => '', 'picture_url' => esc_url_raw($fallback_url), 'fallback_only' => true);
+    }
+
+    $data = array(
+        'name' => sanitize_text_field($body['name'] ?? ''),
+        'about' => sanitize_textarea_field($body['about'] ?? ''),
+        'description' => sanitize_textarea_field($body['description'] ?? ''),
+        'cover_url' => esc_url_raw($body['cover']['source'] ?? ''),
+        'picture_url' => esc_url_raw($body['picture']['data']['url'] ?? ''),
+        'fallback_only' => false,
+    );
+    set_transient($cache_key, $data, 7 * DAY_IN_SECONDS);
+    return $data;
+}
+
+function sc_ajax_pull_facebook_data() {
+    check_ajax_referer('science_communities_nonce', 'nonce');
+    if (!is_user_logged_in()) wp_send_json_error('Login required.');
+
+    $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+    if (!$community_id || !sc_user_can_edit_community($community_id)) wp_send_json_error('No permission.');
+
+    $community = sc_get_community_by_id($community_id);
+    $fb_input = sanitize_text_field($_POST['facebook'] ?? ($community['facebook'] ?? ''));
+    $fb = sc_fetch_facebook_page_data($fb_input);
+    if (is_wp_error($fb)) wp_send_json_error($fb->get_error_message());
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_communities';
+    $updates = array('facebook' => esc_url_raw($fb_input), 'updated_at' => current_time('mysql'));
+    if (!empty($fb['picture_url'])) $updates['logo'] = $fb['picture_url'];
+    if (!empty($fb['about']) && empty($community['shortdescription'])) $updates['shortdescription'] = $fb['about'];
+    if (!empty($fb['description']) && empty($community['description'])) $updates['description'] = $fb['description'];
+    $wpdb->update($table, $updates, array('community_id' => $community_id));
+
+    wp_send_json_success(array('message' => 'Facebook data pulled successfully.', 'data' => $fb));
+}
+add_action('wp_ajax_sc_pull_facebook_data', 'sc_ajax_pull_facebook_data');
 
 /**
  * Focused request logging for admin add/edit flow debugging.
@@ -1057,7 +1150,31 @@ function sc_add_admin_menu() {
         'pkn-contact-requests',
         'sc_render_contact_requests_page'
     );
+
+    add_submenu_page(
+        'pkn-communities',
+        'Social Sync Settings',
+        'Social Sync Settings',
+        'manage_options',
+        'pkn-social-sync-settings',
+        'sc_render_social_settings_page'
+    );
 }
+
+function sc_render_social_settings_page() {
+    if (!current_user_can('manage_options')) { return; }
+    if (isset($_POST['sc_social_settings_nonce']) && wp_verify_nonce($_POST['sc_social_settings_nonce'], 'sc_social_settings')) {
+        update_option('sc_facebook_app_token', sanitize_text_field($_POST['sc_facebook_app_token'] ?? ''));
+        echo '<div class="notice notice-success"><p>Settings saved.</p></div>';
+    }
+    $token = esc_attr(get_option('sc_facebook_app_token', ''));
+    echo '<div class="wrap"><h1>Social Media Sync</h1><form method="post">';
+    wp_nonce_field('sc_social_settings', 'sc_social_settings_nonce');
+    echo '<table class="form-table"><tr><th scope="row">Facebook App Access Token</th><td><input type="text" class="regular-text" name="sc_facebook_app_token" value="' . $token . '" /></td></tr></table>';
+    submit_button('Save Settings');
+    echo '</form></div>';
+}
+
 add_action('admin_menu', 'sc_add_admin_menu');
 
 function sc_render_user_management_page() {
