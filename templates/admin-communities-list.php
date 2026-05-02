@@ -67,6 +67,7 @@ $communities = $wpdb->get_results("SELECT * FROM $table ORDER BY name ASC");
                     <?php endforeach; ?>
                 </select>
                 <input type="submit" class="button action" value="<?php esc_attr_e('Apply', 'science-communities'); ?>">
+                <button type="button" class="button" id="sc-bulk-facebook-pull">Pull from Facebook</button>
             </div>
             <div class="tablenav-pages"><span class="displaying-num"><?php printf(__('%s items', 'science-communities'), number_format_i18n(count($communities))); ?></span></div>
         </div>
@@ -120,6 +121,29 @@ actionSelect.addEventListener('change', function () {
     facultySelect.style.display = this.value === 'faculty' ? 'inline-block' : 'none';
     tagSelect.style.display = (this.value === 'add_tags' || this.value === 'remove_tags') ? 'inline-block' : 'none';
 });
+
+const fbBulkButton = document.getElementById('sc-bulk-facebook-pull');
+if (fbBulkButton) {
+    fbBulkButton.addEventListener('click', function () {
+        const selected = Array.from(document.querySelectorAll('input[name="community_ids[]"]:checked')).map(el => el.value);
+        if (!selected.length) { alert('Select at least one community.'); return; }
+        if (typeof window.jQuery === 'undefined' || typeof scienceCommunitiesData === 'undefined') { alert('Missing AJAX config.'); return; }
+        let done = 0;
+        this.disabled = true;
+        selected.forEach((communityId) => {
+            window.jQuery.post(scienceCommunitiesData.ajaxUrl, {
+                action: 'sc_pull_facebook_data', nonce: scienceCommunitiesData.nonce, community_id: communityId
+            }).always(() => {
+                done += 1;
+                if (done === selected.length) {
+                    alert('Bulk pull finished for ' + done + ' communities.');
+                    window.location.reload();
+                }
+            });
+        });
+    });
+}
+
 </script>
 
 <style>

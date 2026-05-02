@@ -115,3 +115,28 @@ jQuery(document).ready(function($) {
         $(this).val('');
     });
 });
+
+    $('#sc-pull-facebook').on('click', function() {
+        if (typeof scienceCommunitiesData === 'undefined') return;
+        var communityId = $(this).data('community-id');
+        var facebook = $('#sc-facebook').val();
+        var $status = $('#sc-facebook-pull-status');
+        $status.text('Fetching data from Facebook...');
+
+        $.post(scienceCommunitiesData.ajaxUrl, {
+            action: 'sc_pull_facebook_data',
+            nonce: scienceCommunitiesData.nonce,
+            community_id: communityId,
+            facebook: facebook
+        }).done(function(response) {
+            if (response.success) {
+                var d = response.data.data || {};
+                if (d.picture_url) { $('#sc-logo').val(d.picture_url); updateLogoPreview(d.picture_url); }
+                if (d.about && !$('#sc-shortdescription').val()) { $('#sc-shortdescription').val(d.about); }
+                if (d.description && !$('#sc-description').val()) { $('#sc-description').val(d.description); }
+                $status.text('Facebook data fetched. Save the form to persist changes.');
+            } else {
+                $status.text(response.data || 'Could not fetch Facebook data.');
+            }
+        }).fail(function() { $status.text('Request failed. Please try again later.'); });
+    });
