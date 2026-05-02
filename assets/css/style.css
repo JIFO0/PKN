@@ -42,7 +42,7 @@
   width: 220px;
   max-width: 50%;
   height: 9px;
-  margin-top: 0.45rem;
+  margin-top: 0.25rem;
   background: url('../images/underline.svg') no-repeat left center;
   background-size: contain;
 }
@@ -161,4 +161,33 @@ body,
   height: 3px;
   margin: 10px 0 40px;
   background-repeat: no-repeat;
+}
+
+
+/* Site width lock */
+.sc-search-wrapper .container,
+.sc-results-container,
+.sc-list-container,
+.sc-detail-container,
+.sc-admin-panel,
+.sc-manage-users,
+.sc-edit-community,
+.sc-add-community,
+.sc-forum {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Manage users form consistency */
+.sc-manage-users form p {
+  max-width: 480px;
+}
+.sc-manage-users form input,
+.sc-manage-users form select,
+.sc-manage-users form button {
+  width: 100%;
+}
+.sc-manage-users form button + button {
+  margin-top: 8px;
 }

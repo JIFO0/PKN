@@ -73,6 +73,18 @@ if (!sc_can_access_admin_panel()) {
 }
 
 // Get communities the current user can edit
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_community'])) {
+    if (isset($_POST['sc_delete_community_nonce']) && wp_verify_nonce($_POST['sc_delete_community_nonce'], 'sc_delete_community')) {
+        $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+        if ($community_id && sc_is_superadmin()) {
+            sc_delete_community($community_id);
+            $editable_communities = sc_get_editable_communities();
+            echo '<div class="notice notice-success"><p>' . esc_html__('Community deleted.', 'science-communities') . '</p></div>';
+        }
+    }
+}
+
 $editable_communities = sc_get_editable_communities();
 $is_superadmin = sc_is_superadmin();
 $user_name = sc_get_current_user_name();
@@ -172,6 +184,14 @@ $user_name = sc_get_current_user_name();
                                         </svg>
                                         <span class="sc-admin-action-text"><?php _e('View', 'science-communities'); ?></span>
                                     </a>
+                                    <form method="post" onsubmit="return confirm('Delete this community?');" style="display:inline-block;">
+                                        <?php wp_nonce_field('sc_delete_community', 'sc_delete_community_nonce'); ?>
+                                        <input type="hidden" name="sc_delete_community" value="1">
+                                        <input type="hidden" name="community_id" value="<?php echo esc_attr($community['community_id']); ?>">
+                                        <button type="submit" class="sc-admin-view-link" style="border:none;background:#f8d7da;color:#721c24;">
+                                            <span class="sc-admin-action-text"><?php _e('Delete', 'science-communities'); ?></span>
+                                        </button>
+                                    </form>
                                 </div>
                             </td>
                         </tr>
