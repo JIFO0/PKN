@@ -1072,6 +1072,75 @@ function sc_handle_assign_user_to_community() {
 }
 add_action('admin_post_sc_assign_user_to_community', 'sc_handle_assign_user_to_community');
 
+
+function sc_handle_update_admin_profile() {
+    if (!is_user_logged_in() || sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    if (!isset($_POST['sc_update_admin_profile_nonce']) || !wp_verify_nonce($_POST['sc_update_admin_profile_nonce'], 'sc_update_admin_profile')) {
+        wp_die('Security check failed');
+    }
+
+    $display_name = isset($_POST['display_name']) ? sanitize_text_field(wp_unslash($_POST['display_name'])) : '';
+    if ($display_name === '') {
+        wp_die('Display name is required');
+    }
+
+    wp_update_user(array(
+        'ID' => get_current_user_id(),
+        'display_name' => $display_name,
+    ));
+
+    wp_safe_redirect(add_query_arg('profile_updated', '1', sc_get_admin_page_url()));
+    exit;
+}
+add_action('admin_post_sc_update_admin_profile', 'sc_handle_update_admin_profile');
+
+function sc_handle_request_community_removal() {
+    if (!is_user_logged_in() || sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    if (!isset($_POST['sc_request_community_removal_nonce']) || !wp_verify_nonce($_POST['sc_request_community_removal_nonce'], 'sc_request_community_removal')) {
+        wp_die('Security check failed');
+    }
+
+    $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
+    $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
+
+    if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id)) {
+        wp_die('Permission denied');
+    }
+
+    sc_create_contact_request($community_id, '[REMOVAL REQUEST] ' . $message, get_current_user_id());
+    wp_safe_redirect(add_query_arg('request_sent', '1', sc_get_admin_page_url()));
+    exit;
+}
+add_action('admin_post_sc_request_community_removal', 'sc_handle_request_community_removal');
+
+function sc_handle_submit_general_request() {
+    if (!is_user_logged_in() || sc_is_superadmin()) {
+        wp_die('Permission denied');
+    }
+
+    if (!isset($_POST['sc_submit_general_request_nonce']) || !wp_verify_nonce($_POST['sc_submit_general_request_nonce'], 'sc_submit_general_request')) {
+        wp_die('Security check failed');
+    }
+
+    $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
+    $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
+
+    if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id)) {
+        wp_die('Permission denied');
+    }
+
+    sc_create_contact_request($community_id, '[GENERAL REQUEST] ' . $message, get_current_user_id());
+    wp_safe_redirect(add_query_arg('request_sent', '1', sc_get_admin_page_url()));
+    exit;
+}
+add_action('admin_post_sc_submit_general_request', 'sc_handle_submit_general_request');
+
 /**
  * Add WordPress admin menu for PKN Backend
  */
