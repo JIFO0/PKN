@@ -112,6 +112,6 @@ return array(
     'home_request_text' => 'Użyj kreatora zgłoszeń, aby wysłać prośbę o współpracę lub wsparcie do zespołu platformy.',
     'home_request_cta' => 'Utwórz zgłoszenie',
     'home_contact_title' => 'Kontakt',
-    'home_contact_text' => 'Kontakt: pkn@ug.edu.pl | +48 58 523 00 00 | Uniwersytet Gdański, Polska',
+    'home_contact_text' => 'Kontakt: iwo@laskowski.edu.pl | Admin platformy',
 
 );
