@@ -159,7 +159,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 ?>
 
 <div class="sc-manage-users">
-    <h1><?php _e('User Management', 'science-communities'); ?></h1>
+    <h1><?php echo esc_html(sc_t('user_management')); ?></h1>
 
     <?php if (!empty($success_message)): ?>
     <div class="notice notice-success"><p><?php echo esc_html($success_message); ?></p></div>
@@ -169,18 +169,18 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
     <div class="notice notice-error"><p><?php echo esc_html($error_message); ?></p></div>
     <?php endif; ?>
 
-    <form method="post" class="sc-add-admin-form">
+    <form method="post" class="sc-add-admin-form sc-user-form">
         <?php wp_nonce_field('sc_add_admin', 'sc_add_admin_nonce'); ?>
         <input type="hidden" name="sc_add_admin" value="1">
-        <h2><?php _e('Create user manually', 'science-communities'); ?></h2>
+        <h2><?php echo esc_html(sc_t('create_user_manually')); ?></h2>
 
-        <p><input type="text" name="username" placeholder="Username" required></p>
-        <p><input type="email" name="email" placeholder="Email" required></p>
-        <p><input type="text" name="password" placeholder="Password (optional)"></p>
+        <p><input type="text" name="username" placeholder="<?php echo esc_attr(sc_t('username')); ?>" required></p>
+        <p><input type="email" name="email" placeholder="<?php echo esc_attr(sc_t('email')); ?>" required></p>
+        <p><input type="text" name="password" placeholder="<?php echo esc_attr(sc_t('password_optional')); ?>"></p>
         <p>
             <input type="text" id="sc-community-search" placeholder="Search community..." style="width: 320px;">
             <select name="community_id" id="sc-community-select" required>
-                <option value=""><?php _e('Select Community', 'science-communities'); ?></option>
+                <option value=""><?php echo esc_html(sc_t('select_community')); ?></option>
                 <?php foreach ($communities as $community): ?>
                 <option value="<?php echo esc_attr($community['community_id']); ?>">
                     <?php echo esc_html($community['name']); ?> (<?php echo esc_html($community['community_id']); ?>)
@@ -189,7 +189,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
             </select>
         </p>
 
-        <button type="submit" class="button button-primary"><?php _e('Create + Assign', 'science-communities'); ?></button>
+        <button type="submit" class="button button-primary"><?php echo esc_html(sc_t('create_assign')); ?></button>
     </form>
 
     <hr>
@@ -209,12 +209,12 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 
     <hr>
 
-    <form method="post" class="sc-assignment-form">
+    <form method="post" class="sc-assignment-form sc-user-form">
         <?php wp_nonce_field('sc_manage_assignment', 'sc_manage_assignment_nonce'); ?>
         <input type="hidden" name="sc_manage_assignment" value="1">
-        <h2><?php _e('Assign / Unassign community admin', 'science-communities'); ?></h2>
+        <h2><?php echo esc_html(sc_t('assign_unassign_admin')); ?></h2>
         <p>
-            <input list="sc-users-list" name="selected_user_id" placeholder="Type/select user ID" required>
+            <input list="sc-users-list" name="selected_user_id" placeholder="<?php echo esc_attr(sc_t('type_select_user_id')); ?>" required>
             <datalist id="sc-users-list">
                 <?php foreach ($users as $user): ?>
                 <option value="<?php echo esc_attr($user->ID); ?>"><?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?></option>
@@ -224,25 +224,25 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
         <p>
             <input type="text" id="sc-community-search-2" placeholder="Search community...">
             <select name="selected_community_id" id="sc-community-select-2" required>
-                <option value=""><?php _e('Select Community', 'science-communities'); ?></option>
+                <option value=""><?php echo esc_html(sc_t('select_community')); ?></option>
                 <?php foreach ($communities as $community): ?>
                 <option value="<?php echo esc_attr($community['community_id']); ?>"><?php echo esc_html($community['name']); ?> (<?php echo esc_html($community['community_id']); ?>)</option>
                 <?php endforeach; ?>
             </select>
         </p>
         <p>
-            <button type="submit" name="assignment_action" value="assign" class="button button-primary"><?php _e('Assign', 'science-communities'); ?></button>
-            <button type="submit" name="assignment_action" value="unassign" class="button"><?php _e('Unassign', 'science-communities'); ?></button>
+            <button type="submit" name="assignment_action" value="assign" class="button button-primary"><?php echo esc_html(sc_t('assign')); ?></button>
+            <button type="submit" name="assignment_action" value="unassign" class="button"><?php echo esc_html(sc_t('unassign')); ?></button>
         </p>
     </form>
 
-    <h2><?php _e('Users', 'science-communities'); ?></h2>
+    <h2><?php echo esc_html(sc_t('users')); ?></h2>
     <table class="wp-list-table widefat striped">
         <thead>
             <tr>
                 <th><?php _e('User', 'science-communities'); ?></th>
-                <th><?php _e('Roles', 'science-communities'); ?></th>
-                <th><?php _e('Action', 'science-communities'); ?></th>
+                <th><?php echo esc_html(sc_t('roles')); ?></th>
+                <th><?php echo esc_html(sc_t('action')); ?></th>
             </tr>
         </thead>
         <tbody>
@@ -255,7 +255,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
                         <?php wp_nonce_field('sc_delete_user', 'sc_delete_user_nonce'); ?>
                         <input type="hidden" name="sc_delete_user" value="1">
                         <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>">
-                        <button type="submit" class="button"><?php _e('Delete', 'science-communities'); ?></button>
+                        <button type="submit" class="button"><?php echo esc_html(sc_t('delete')); ?></button>
                     </form>
                 </td>
             </tr>
