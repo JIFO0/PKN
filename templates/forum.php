@@ -22,19 +22,24 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
 >
     <div class="sc-forum-sidebar">
         <div class="sc-forum-sidebar-header">
-            <h2><?php esc_html_e('Forum', 'science-communities'); ?></h2>
+            <h2><?php echo esc_html(sc_t('forum_title')); ?></h2>
             <div class="sc-forum-header-actions">
                 <?php sc_render_lang_toggle(); ?>
-                <button type="button" class="button sc-forum-refresh-threads"><?php esc_html_e('Refresh', 'science-communities'); ?></button>
+                <button type="button" class="button sc-forum-refresh-threads"><?php echo esc_html(sc_t('refresh')); ?></button>
             </div>
         </div>
 
         <div class="sc-thread-pagination">
-            <span><?php echo esc_html(sprintf(__('Page %d/%d', 'science-communities'), $threads_data['page'], $threads_data['total_pages'])); ?></span>
+            <span><?php echo esc_html(sprintf(sc_t('page_x_of_y'), $threads_data['page'], $threads_data['total_pages'])); ?></span>
             <div class="sc-thread-pagination-actions">
-                <button type="button" class="button sc-thread-page-prev" <?php disabled($threads_data['page'] <= 1); ?>><?php esc_html_e('Prev', 'science-communities'); ?></button>
-                <button type="button" class="button sc-thread-page-next" <?php disabled($threads_data['page'] >= $threads_data['total_pages']); ?>><?php esc_html_e('Next', 'science-communities'); ?></button>
+                <button type="button" class="button sc-thread-page-prev" <?php disabled($threads_data['page'] <= 1); ?>><?php echo esc_html(sc_t('prev')); ?></button>
+                <button type="button" class="button sc-thread-page-next" <?php disabled($threads_data['page'] >= $threads_data['total_pages']); ?>><?php echo esc_html(sc_t('next')); ?></button>
             </div>
+        </div>
+
+        
+        <div class="sc-forum-rules">
+            <p><?php echo esc_html(sc_t('forum_rules_text')); ?></p>
         </div>
 
         <ul class="sc-thread-list" id="sc-thread-list">
@@ -48,10 +53,10 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
                         <span class="sc-thread-title"><?php echo esc_html($thread['title']); ?></span>
                         <span class="sc-thread-meta">
                             <?php if ((int) $thread['is_general'] === 1): ?>
-                                <strong><?php esc_html_e('General Chat', 'science-communities'); ?></strong>
+                                <strong><?php echo esc_html(sc_t('general_chat')); ?></strong>
                             <?php endif; ?>
                             <?php if ((int) $thread['is_closed'] === 1): ?>
-                                <em><?php esc_html_e('Closed', 'science-communities'); ?></em>
+                                <em><?php echo esc_html(sc_t('closed')); ?></em>
                             <?php endif; ?>
                         </span>
                     </button>
@@ -60,10 +65,10 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
         </ul>
 
         <form class="sc-forum-create-thread">
-            <h3><?php esc_html_e('New thread', 'science-communities'); ?></h3>
-            <input type="text" name="title" maxlength="255" required placeholder="<?php esc_attr_e('Thread title', 'science-communities'); ?>">
-            <textarea name="message" maxlength="2000" required placeholder="<?php esc_attr_e('First message', 'science-communities'); ?>"></textarea>
-            <button type="submit" class="button button-primary"><?php esc_html_e('Create thread', 'science-communities'); ?></button>
+            <h3><?php echo esc_html(sc_t('new_thread')); ?></h3>
+            <input type="text" name="title" maxlength="255" required placeholder="<?php echo esc_attr(sc_t('thread_title')); ?>">
+            <textarea name="message" maxlength="2000" required placeholder="<?php echo esc_attr(sc_t('first_message')); ?>"></textarea>
+            <button type="submit" class="button button-primary"><?php echo esc_html(sc_t('create_thread')); ?></button>
         </form>
     </div>
 
@@ -71,9 +76,9 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
         <div class="sc-forum-thread-header">
             <h3 id="sc-thread-title"><?php echo $active_thread ? esc_html($active_thread['title']) : ''; ?></h3>
             <div class="sc-forum-thread-actions">
-                <button type="button" class="button sc-forum-refresh-messages"><?php esc_html_e('Refresh', 'science-communities'); ?></button>
+                <button type="button" class="button sc-forum-refresh-messages"><?php echo esc_html(sc_t('refresh')); ?></button>
                 <?php if (sc_is_superadmin()): ?>
-                    <button type="button" class="button sc-forum-close-thread"><?php esc_html_e('Close thread', 'science-communities'); ?></button>
+                    <button type="button" class="button sc-forum-close-thread"><?php echo esc_html(sc_t('close_thread')); ?></button>
                 <?php endif; ?>
             </div>
         </div>
@@ -81,8 +86,8 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
         <div class="sc-message-list" id="sc-message-list"></div>
 
         <form class="sc-forum-message-form" id="sc-forum-message-form">
-            <textarea name="message" maxlength="2000" required placeholder="<?php esc_attr_e('Write a message...', 'science-communities'); ?>"></textarea>
-            <button type="submit" class="button button-primary"><?php esc_html_e('Send', 'science-communities'); ?></button>
+            <textarea name="message" maxlength="2000" required placeholder="<?php echo esc_attr(sc_t('write_message')); ?>"></textarea>
+            <button type="submit" class="button button-primary"><?php echo esc_html(sc_t('send')); ?></button>
         </form>
     </div>
 </div>

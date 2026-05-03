@@ -53,7 +53,46 @@ $social_links = array(
         'title' => esc_html(sc_t('discord')),
         'icon' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10a1 1 0 1 1-2 0a1 1 0 0 1 2 0z"></path><path d="M15 10a1 1 0 1 1 2 0a1 1 0 0 1-2 0z"></path><path d="M20 11c0-5-3-9-9-9c-5.3 0-8.3 3-9.8 6.4C0 10.7 0 13.5 0 16.5c0 0 1.2 3.5 6 3.5c0 0 .7-1 1.3-1.8c-2.5-.7-3.3-2-3.3-2c.7 .7 1.7 1 3 1.5c1.3 .4 2.7 .6 4 .6c1.3 0 2.7-.2 4-.6c1.3-.4 2.3-.8 3-1.5c0 0-.8 1.3-3.3 2c.6 .8 1.3 1.8 1.3 1.8c4.8 0 6-3.5 6-3.5c0-3-.3-5.7-1-7.8"></path></svg>'
     )
-);
+ );
+
+$social_preview_settings = wp_parse_args(get_option('sc_social_preview_settings', array()), array(
+    'enabled' => '1',
+    'facebook' => '1',
+    'discord' => '1',
+    'tiktok' => '1',
+    'instagram_card' => '1',
+    'facebook_width' => '340',
+    'facebook_height' => '500',
+    'discord_width' => '350',
+    'discord_height' => '500',
+    'discord_theme' => 'dark',
+));
+
+function sc_render_social_preview_embed($platform, $value, $settings = array()) {
+    if (empty($value)) {
+        return '';
+    }
+
+    switch ($platform) {
+        case 'facebook':
+            $src = 'https://www.facebook.com/plugins/page.php?href=' . rawurlencode($value) . '&tabs=timeline&width=' . intval($settings['facebook_width']) . '&height=' . intval($settings['facebook_height']) . '&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true';
+            return '<iframe loading="lazy" src="' . esc_url($src) . '" width="' . intval($settings['facebook_width']) . '" height="' . intval($settings['facebook_height']) . '" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+        case 'discord':
+            if (!preg_match('/\d{17,20}/', (string) $value, $m)) {
+                return '';
+            }
+            $src = 'https://discord.com/widget?id=' . rawurlencode($m[0]) . '&theme=' . rawurlencode($settings['discord_theme']);
+            return '<iframe loading="lazy" src="' . esc_url($src) . '" width="' . intval($settings['discord_width']) . '" height="' . intval($settings['discord_height']) . '" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>';
+        case 'tiktok':
+            return '<blockquote class="tiktok-embed" cite="' . esc_url($value) . '"><section></section></blockquote>';
+        case 'instagram':
+            $host = wp_parse_url($value, PHP_URL_HOST);
+            $path = trim((string) wp_parse_url($value, PHP_URL_PATH), '/');
+            $username = strtok($path, '/');
+            return '<div class="sc-instagram-preview-card"><strong>@' . esc_html($username ?: $value) . '</strong><p>' . esc_html(sc_t('instagram_profile_preview')) . '</p><a href="' . esc_url($value) . '" target="_blank" rel="noopener noreferrer">Instagram</a></div>';
+    }
+    return '';
+}
 
 // Check if user can edit this community
 $can_edit = sc_user_can_edit_community($community_id);
@@ -184,6 +223,25 @@ $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_
                 </ul>
             </div>
             
+            <?php if (!empty($social_preview_settings['enabled']) && $social_preview_settings['enabled'] === '1'): ?>
+            <div class="sc-detail-social-previews">
+                <h2 class="sc-detail-section-title"><?php echo esc_html(sc_t('social_media_previews')); ?></h2>
+                <?php if (!empty($social_preview_settings['facebook']) && !empty($community['facebook'])): ?>
+                    <?php echo sc_render_social_preview_embed('facebook', $community['facebook'], $social_preview_settings); ?>
+                <?php endif; ?>
+                <?php if (!empty($social_preview_settings['discord']) && !empty($community['discord'])): ?>
+                    <?php echo sc_render_social_preview_embed('discord', $community['discord'], $social_preview_settings); ?>
+                <?php endif; ?>
+                <?php if (!empty($social_preview_settings['tiktok']) && !empty($community['tiktok'])): ?>
+                    <?php echo sc_render_social_preview_embed('tiktok', $community['tiktok'], $social_preview_settings); ?>
+                    <script async src="https://www.tiktok.com/embed.js"></script>
+                <?php endif; ?>
+                <?php if (!empty($social_preview_settings['instagram_card']) && !empty($community['instagram'])): ?>
+                    <?php echo sc_render_social_preview_embed('instagram', $community['instagram'], $social_preview_settings); ?>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
             <div class="sc-detail-id">
                 <span class="sc-detail-id-label"><?php echo esc_html(sc_t('community_id')); ?></span>
                 <span class="sc-detail-id-value"><?php echo esc_html($community_id); ?></span>

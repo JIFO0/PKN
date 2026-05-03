@@ -153,3 +153,33 @@
         grid-template-columns: 1fr;
     }
 }
+
+.sc-forum-rules {
+    border: 2px solid var(--ug-gray-300);
+    border-left: 4px solid var(--ug-cyan);
+    background: var(--ug-gray-100);
+    padding: 10px 12px;
+    margin: 10px 0 14px;
+    font-size: 13px;
+}
+
+.sc-forum-thread-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.sc-forum-refresh-threads,
+.sc-forum-refresh-messages,
+.sc-forum-close-thread {
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .sc-forum-sidebar-header,
+    .sc-forum-thread-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
