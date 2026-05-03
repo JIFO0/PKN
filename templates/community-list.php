@@ -334,6 +334,9 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
             </div>
             
             <div class="sc-card-footer">
+                <?php if (!empty($community->contact_email) && !empty($community->open_for_applications)): ?>
+                <button type="button" class="sc-apply-button" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html__('Apply to join', 'science-communities'); ?></button>
+                <?php endif; ?>
                 <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>" 
                    class="sc-card-link">
                     <?php echo esc_html(sc_t('view_details')); ?>
@@ -348,9 +351,20 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
     </div>
     <?php endif; ?>
 </div>
+<form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:none;">
+<input type="hidden" name="action" value="sc_submit_join_application"><?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
+<input type="hidden" name="community_id" id="sc-apply-community-id"><input type="hidden" name="applicant_name" id="sc-apply-name"><input type="hidden" name="applicant_email" id="sc-apply-email"><input type="hidden" name="applicant_info" id="sc-apply-info"><input type="hidden" name="applicant_contact" id="sc-apply-contact"></form>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.sc-apply-button').forEach(btn=>btn.addEventListener('click',()=>{
+        const name=prompt('Your name:'); if(!name)return;
+        const info=prompt('Tell us about yourself:'); if(!info)return;
+        const email=prompt('Contact email:'); if(!email)return;
+        const contact=prompt('Optional contact (Discord/Facebook/Instagram):','')||'';
+        document.getElementById('sc-apply-community-id').value=btn.dataset.communityId;
+        document.getElementById('sc-apply-name').value=name;document.getElementById('sc-apply-email').value=email;document.getElementById('sc-apply-info').value=info;document.getElementById('sc-apply-contact').value=contact;document.getElementById('sc-apply-form').submit();
+    }));
     // Handle filter checkbox styling
     const checkboxes = document.querySelectorAll('.sc-filter-tag-item input, .sc-filter-faculty-item input');
     checkboxes.forEach(function(checkbox) {

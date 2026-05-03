@@ -152,6 +152,8 @@ function sc_save_community($data) {
         'tiktok' => esc_url_raw($data['tiktok'] ?? ''),
         'discord' => esc_url_raw($data['discord'] ?? ''),
         'logo' => esc_url_raw($data['logo'] ?? ''),
+        'contact_email' => sanitize_email($data['contact_email'] ?? ''),
+        'open_for_applications' => isset($data['open_for_applications']) ? intval((bool) $data['open_for_applications']) : 1,
         'faculty_id' => isset($data['faculty_id']) && !empty($data['faculty_id']) ? intval($data['faculty_id']) : null,
         'status' => isset($data['status']) ? sanitize_text_field($data['status']) : 'active',
         'is_archived' => isset($data['is_archived']) ? intval((bool) $data['is_archived']) : 0,

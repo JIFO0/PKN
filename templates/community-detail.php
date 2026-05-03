@@ -142,6 +142,9 @@ $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_
                 <?php endif; ?>
                 
                 <h1 class="sc-detail-title"><?php echo esc_html($community['name']); ?></h1>
+                <?php if (!empty($community['contact_email']) && !empty($community['open_for_applications'])): ?>
+                    <button type="button" class="sc-apply-button" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html__('Apply to join', 'science-communities'); ?></button>
+                <?php endif; ?>
                 
                 <?php if (!empty($community['tags']) && is_array($community['tags'])): ?>
                 <div class="sc-detail-tags">
@@ -249,3 +252,12 @@ $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_
         </div>
     </div>
 </div>
+<form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:none;">
+    <input type="hidden" name="action" value="sc_submit_join_application">
+    <?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
+    <input type="hidden" name="community_id" id="sc-apply-community-id" value="<?php echo esc_attr($community_id); ?>">
+    <input type="hidden" name="applicant_name" id="sc-apply-name"><input type="hidden" name="applicant_email" id="sc-apply-email"><input type="hidden" name="applicant_info" id="sc-apply-info"><input type="hidden" name="applicant_contact" id="sc-apply-contact">
+</form>
+<script>
+document.querySelectorAll('.sc-apply-button').forEach(btn=>btn.addEventListener('click',()=>{const name=prompt('Your name:');if(!name)return;const info=prompt('Tell us about yourself:');if(!info)return;const email=prompt('Contact email:');if(!email)return;const contact=prompt('Optional contact (Discord/Facebook/Instagram):','')||'';document.getElementById('sc-apply-name').value=name;document.getElementById('sc-apply-email').value=email;document.getElementById('sc-apply-info').value=info;document.getElementById('sc-apply-contact').value=contact;document.getElementById('sc-apply-form').submit();}));
+</script>

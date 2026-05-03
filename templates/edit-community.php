@@ -83,6 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 'tiktok' => esc_url_raw($_POST['tiktok']),
                 'discord' => esc_url_raw($_POST['discord']),
                 'logo' => esc_url_raw($_POST['logo']),
+                'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
+                'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
                 'faculty_id' => isset($_POST['faculty_id']) && !empty($_POST['faculty_id']) ? intval($_POST['faculty_id']) : null,
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
                 'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
@@ -232,6 +234,16 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
                 </div>
                 <div class="sc-upload-message"></div>
             </div>
+        </div>
+        <div class="sc-form-group">
+            <label for="sc-contact-email"><?php echo esc_html__('Application contact email', 'science-communities'); ?></label>
+            <input type="email" id="sc-contact-email" name="contact_email" value="<?php echo esc_attr($community['contact_email'] ?? ''); ?>">
+        </div>
+        <div class="sc-form-group">
+            <label>
+                <input type="checkbox" name="open_for_applications" value="1" <?php checked(isset($community['open_for_applications']) ? intval($community['open_for_applications']) : 1, 1); ?>>
+                <?php echo esc_html__('Open for applications', 'science-communities'); ?>
+            </label>
         </div>
             <div class="sc-form-group">
             <label for="sc-faculty"><?php echo esc_html__('Faculty', 'science-communities'); ?></label>
