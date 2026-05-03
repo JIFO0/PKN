@@ -106,4 +106,12 @@ return array(
     'type_select_user_id' => 'Wpisz/wybierz ID użytkownika',
     'social_media_previews' => 'Podglądy mediów społecznościowych',
     'instagram_profile_preview' => 'Podgląd profilu jest ograniczony przez zasady API Instagrama.',
+    'home_features_title' => 'Funkcjonalności platformy',
+    'home_features_text' => 'Wyszukuj koła, przeglądaj szczegóły, filtruj po wydziale/tagach i szybciej odkrywaj aktywności.',
+    'home_request_title' => 'Kreator zgłoszeń',
+    'home_request_text' => 'Użyj kreatora zgłoszeń, aby wysłać prośbę o współpracę lub wsparcie do zespołu platformy.',
+    'home_request_cta' => 'Utwórz zgłoszenie',
+    'home_contact_title' => 'Kontakt',
+    'home_contact_text' => 'Kontakt: pkn@ug.edu.pl | +48 58 523 00 00 | Uniwersytet Gdański, Polska',
+
 );

@@ -15,7 +15,7 @@ settings_errors('pkn_messages');
 <div class="wrap">
     <h1 class="wp-heading-inline"><?php _e('Import Communities from Excel', 'science-communities'); ?></h1>
     <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pkn-import&sc_export=1'), 'sc_export_communities')); ?>" class="page-title-action">
-        <?php _e('Export to CSV', 'science-communities'); ?>
+        <?php _e('Export SC CSV (|)', 'science-communities'); ?>
     </a>
     <hr class="wp-header-end">
     
@@ -31,7 +31,7 @@ settings_errors('pkn_messages');
                     <td>
                         <input type="file" name="excel_file" id="excel_file" accept=".csv,.xlsx,.xls" required>
                         <p class="description">
-                            <?php _e('Upload a CSV or Excel file. The file should have the following columns:', 'science-communities'); ?>
+                            <?php _e('Upload a CSV or Excel file (recommended: CSV with | delimiter and UTF-8). The file should have the following columns:', 'science-communities'); ?>
                         </p>
                     </td>
                 </tr>
@@ -110,7 +110,7 @@ settings_errors('pkn_messages');
                 <tr>
                     <td><code>tags</code></td>
                     <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Comma-separated tags (e.g., "Science, Technology, Research")', 'science-communities'); ?></td>
+                    <td><?php _e('Tags separated by commas inside one field (e.g., "Science, Technology, Research")', 'science-communities'); ?></td>
                 </tr>
             </tbody>
         </table>

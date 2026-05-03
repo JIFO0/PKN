@@ -62,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
         $row = 0;
         $created_count = 0;
         $assigned_count = 0;
-        while (($data = fgetcsv($handle)) !== false) {
+        $delimiter = sc_detect_csv_delimiter($_FILES['users_csv']['tmp_name']);
+        while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             $row++;
             if ($row === 1 && isset($data[0]) && strtolower(trim($data[0])) === 'username') {
                 continue;
@@ -198,6 +199,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
         <?php wp_nonce_field('sc_import_admin_csv', 'sc_import_admin_csv_nonce'); ?>
         <input type="hidden" name="sc_import_admin_csv" value="1">
         <h2><?php _e('Import users from CSV', 'science-communities'); ?></h2>
+        <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pkn-manage-users&sc_export_accounts=1'), 'sc_export_accounts')); ?>"><?php _e('Export users CSV', 'science-communities'); ?></a></p>
         <p><?php _e('CSV format: username,email,community_id,password(optional)', 'science-communities'); ?></p>
         <p><input type="file" name="users_csv" accept=".csv" required></p>
         <button type="submit" class="button"><?php _e('Import CSV', 'science-communities'); ?></button>
