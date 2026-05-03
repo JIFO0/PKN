@@ -59,6 +59,7 @@ $social_links = array(
 $can_edit = sc_user_can_edit_community($community_id);
 $event_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'event') : array();
 $team_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'team') : array();
+$gallery_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'gallery') : array();
 
 ?>
 
@@ -141,6 +142,19 @@ $team_images = function_exists('sc_get_community_images') ? sc_get_community_ima
                 <div class="sc-detail-gallery-grid">
                     <?php foreach ($team_images as $image): ?>
                         <img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr(sc_t('team_photo')); ?>">
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($gallery_images)): ?>
+            <div class="sc-detail-gallery sc-detail-gallery-featured">
+                <h2><?php echo esc_html__('Community Gallery', 'science-communities'); ?></h2>
+                <div class="sc-detail-gallery-grid sc-detail-gallery-grid-large">
+                    <?php foreach ($gallery_images as $image): ?>
+                        <a href="<?php echo esc_url($image); ?>" class="sc-gallery-item" target="_blank" rel="noopener noreferrer">
+                            <img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr__('Community gallery image', 'science-communities'); ?>">
+                        </a>
                     <?php endforeach; ?>
                 </div>
             </div>

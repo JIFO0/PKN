@@ -138,6 +138,22 @@ $all_tags = sc_get_all_tags();
             </div>
         </div>
 
+        <div class="sc-form-group">
+            <label for="sc-gallery-images"><?php echo esc_html__('Community Gallery (one URL per line)', 'science-communities'); ?></label>
+            <textarea id="sc-gallery-images" name="gallery_images" rows="6"></textarea>
+            <div class="sc-logo-upload sc-gallery-upload">
+                <label for="sc-gallery-upload" class="sc-upload-button">
+                    <?php echo esc_html__('Upload Gallery Images', 'science-communities'); ?>
+                </label>
+                <input type="file" id="sc-gallery-upload" accept=".png,.jpg,.jpeg,.webp" multiple style="display:none;">
+                <div class="sc-upload-info"><?php echo esc_html__('Select multiple images; uploaded links are added automatically.', 'science-communities'); ?></div>
+                <div class="sc-upload-progress sc-gallery-progress" style="display:none;">
+                    <div class="sc-progress-bar"></div>
+                </div>
+                <div class="sc-upload-message sc-gallery-upload-message"></div>
+            </div>
+        </div>
+
         <div class="sc-form-actions">
             <button type="submit" class="sc-submit-button">
                 <?php echo esc_html__('Create Community', 'science-communities'); ?>

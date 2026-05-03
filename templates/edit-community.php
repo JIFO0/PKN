@@ -89,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
                 'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
                 'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
+                'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
             );
 
             // Save
@@ -130,6 +131,7 @@ if (isset($_GET['error'])) {
 $all_tags = sc_get_all_tags();
 $event_images = sc_get_community_images($community_id, 'event');
 $team_images = sc_get_community_images($community_id, 'team');
+$gallery_images = sc_get_community_images($community_id, 'gallery');
 ?>
 
 <div class="sc-edit-community">
@@ -285,6 +287,23 @@ $team_images = sc_get_community_images($community_id, 'team');
         <div class="sc-form-group">
             <label for="sc-team-images"><?php _e('Team photos (one URL per line)', 'science-communities'); ?></label>
             <textarea id="sc-team-images" name="team_images" rows="4"><?php echo esc_textarea(implode("\n", $team_images)); ?></textarea>
+        </div>
+
+        <div class="sc-form-group">
+            <label for="sc-gallery-images"><?php _e('Community gallery (one URL per line)', 'science-communities'); ?></label>
+            <textarea id="sc-gallery-images" name="gallery_images" rows="6"><?php echo esc_textarea(implode("\n", $gallery_images)); ?></textarea>
+            <div class="sc-logo-upload sc-gallery-upload">
+                <p class="sc-upload-or"><?php _e('— OR —', 'science-communities'); ?></p>
+                <label for="sc-gallery-upload" class="sc-upload-button">
+                    <?php _e('Upload Gallery Images', 'science-communities'); ?>
+                </label>
+                <input type="file" id="sc-gallery-upload" accept="image/png,image/jpeg,image/jpg,image/webp" multiple style="display:none;">
+                <div class="sc-upload-info"><?php _e('You can select multiple files. Uploaded image URLs will be appended to the gallery list.', 'science-communities'); ?></div>
+                <div class="sc-upload-progress sc-gallery-progress" style="display:none;">
+                    <div class="sc-progress-bar"></div>
+                </div>
+                <div class="sc-upload-message sc-gallery-upload-message"></div>
+            </div>
         </div>
         </div>
         <?php if (sc_is_superadmin()): ?>
