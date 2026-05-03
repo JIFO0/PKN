@@ -73,7 +73,6 @@
 .sc-search-header h1.underline::after {
     content: '';
     position: absolute;
-    bottom: -4px;
     left: 0;
     right: 0;
     height: 4px;
