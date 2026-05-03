@@ -78,6 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_community']
 $editable_communities = sc_get_editable_communities();
 $is_superadmin = sc_is_superadmin();
 $user_name = sc_get_current_user_name();
+$editable_ids = array_map(function($c){ return $c['community_id']; }, $editable_communities);
+$has_unread_applications = false;
+if (!empty($editable_ids)) {
+    global $wpdb;
+    $apps_table = $wpdb->prefix . 'science_community_applications';
+    $placeholders = implode(',', array_fill(0, count($editable_ids), '%s'));
+    $has_unread_applications = intval($wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $apps_table WHERE is_read = 0 AND community_id IN ($placeholders)", $editable_ids))) > 0;
+}
 ?>
 
 <div class="sc-admin-panel">
@@ -116,6 +124,10 @@ $user_name = sc_get_current_user_name();
                 <line x1="8" y1="12" x2="16" y2="12"></line>
             </svg>
             <?php _e('Add New Community', 'science-communities'); ?>
+        </a>
+        <a href="<?php echo esc_url(sc_get_page_url_by_shortcode('science_communities_statistics', site_url('/community-statistics/'))); ?>" class="sc-admin-add-new" style="flex: 1; text-align: center; position:relative;">
+            <?php _e('Statistics', 'science-communities'); ?>
+            <?php if ($has_unread_applications): ?><span style="position:absolute;right:12px;top:10px;width:10px;height:10px;background:#d00;border-radius:50%;display:inline-block;"></span><?php endif; ?>
         </a>
         <?php endif; ?>
     </div>

@@ -288,6 +288,8 @@ function sc_create_tables() {
         tiktok VARCHAR(512),
         discord VARCHAR(512),
         logo VARCHAR(512),
+        contact_email VARCHAR(255),
+        open_for_applications TINYINT(1) DEFAULT 1,
         faculty_id mediumint(9),
         status ENUM('active', 'limited', 'suspended', 'inactive') DEFAULT 'active',
         is_archived TINYINT(1) DEFAULT 0,
@@ -368,6 +370,24 @@ function sc_create_tables() {
         PRIMARY KEY (id),
         KEY user_id (user_id),
         KEY created_at (created_at)
+    ) $charset_collate;";
+    dbDelta($sql);
+    
+    // 8. Community applications
+    $sql = "CREATE TABLE {$wpdb->prefix}science_community_applications (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        community_id VARCHAR(5) NOT NULL,
+        applicant_name VARCHAR(255) NOT NULL,
+        applicant_email VARCHAR(255) NOT NULL,
+        applicant_info TEXT NOT NULL,
+        applicant_contact VARCHAR(255) NULL,
+        applicant_user_id bigint(20) UNSIGNED NULL,
+        is_read TINYINT(1) DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY community_id (community_id),
+        KEY created_at (created_at),
+        KEY is_read (is_read)
     ) $charset_collate;";
     dbDelta($sql);
 
@@ -989,6 +1009,8 @@ function sc_handle_edit_community() {
         'tiktok' => esc_url_raw($_POST['tiktok']),
         'discord' => esc_url_raw($_POST['discord']),
         'logo' => esc_url_raw($_POST['logo']),
+        'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
+        'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
         'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
         'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
         'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
@@ -1046,6 +1068,46 @@ function sc_handle_submit_contact_request() {
     exit;
 }
 add_action('admin_post_sc_submit_contact_request', 'sc_handle_submit_contact_request');
+
+function sc_handle_submit_join_application() {
+    if (!isset($_POST['sc_join_application_nonce']) || !wp_verify_nonce($_POST['sc_join_application_nonce'], 'sc_join_application')) {
+        wp_die('Security check failed');
+    }
+    $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+    $name = sanitize_text_field($_POST['applicant_name'] ?? '');
+    $email = sanitize_email($_POST['applicant_email'] ?? '');
+    $info = sanitize_textarea_field(wp_unslash($_POST['applicant_info'] ?? ''));
+    $contact = sanitize_text_field($_POST['applicant_contact'] ?? '');
+    if (empty($community_id) || empty($name) || empty($email) || empty($info)) {
+        wp_die('Missing required fields');
+    }
+    $rate_key = 'sc_join_apps_' . get_current_user_id();
+    $sent = intval(get_transient($rate_key));
+    if ($sent >= 10) {
+        wp_die('Rate limit exceeded (10/24h).');
+    }
+    $community = sc_get_community_by_id($community_id);
+    if (!$community || empty($community['contact_email']) || empty($community['open_for_applications'])) {
+        wp_die('This community is not open for applications.');
+    }
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_community_applications';
+    $wpdb->insert($table, array(
+        'community_id' => $community_id,
+        'applicant_name' => $name,
+        'applicant_email' => $email,
+        'applicant_info' => $info,
+        'applicant_contact' => $contact,
+        'applicant_user_id' => get_current_user_id() ?: null,
+        'is_read' => 0,
+    ));
+    set_transient($rate_key, $sent + 1, DAY_IN_SECONDS);
+    wp_mail($community['contact_email'], 'New SC join application: ' . $community['name'], "Name: $name\nEmail: $email\nInfo: $info\nContact: $contact");
+    wp_safe_redirect(add_query_arg(array('id' => $community_id, 'applied' => '1'), sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'))));
+    exit;
+}
+add_action('admin_post_sc_submit_join_application', 'sc_handle_submit_join_application');
+add_action('admin_post_nopriv_sc_submit_join_application', 'sc_handle_submit_join_application');
 
 function sc_handle_assign_user_to_community() {
     if (!is_user_logged_in() || !sc_is_superadmin()) {
