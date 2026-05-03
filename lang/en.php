@@ -106,4 +106,12 @@ return array(
     'type_select_user_id' => 'Type/select user ID',
     'social_media_previews' => 'Social Media Previews',
     'instagram_profile_preview' => 'Profile preview is limited by Instagram API rules.',
+    'home_features_title' => 'Platform functionalities',
+    'home_features_text' => 'Search communities, browse details, filter by faculty/tags, and discover activity faster.',
+    'home_request_title' => 'Request creator',
+    'home_request_text' => 'Use the request creator to send cooperation or support requests to the platform team.',
+    'home_request_cta' => 'Create request',
+    'home_contact_title' => 'Contact',
+    'home_contact_text' => 'Contact: pkn@ug.edu.pl | +48 58 523 00 00 | University of Gdansk, Poland',
+
 );

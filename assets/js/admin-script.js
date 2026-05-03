@@ -125,7 +125,8 @@ jQuery(document).ready(function($) {
         var $textarea = $('#sc-gallery-images');
         var uploadedCount = 0;
         var failedCount = 0;
-        var total = files.length;
+        var total = Math.min(files.length, 12);
+        if (files.length > 12) { $message.addClass('error').html('Maximum 12 gallery images can be uploaded at once.'); }
 
         $message.html('').removeClass('error success');
         $progress.show();

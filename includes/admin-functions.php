@@ -360,7 +360,7 @@ function sc_can_user_upload($user_id) {
     ));
     
     return array(
-        'can_upload' => ($uploads_today < 3),
+        'can_upload' => ($uploads_today < 12),
         'uploads_today' => intval($uploads_today),
         'is_superadmin' => false
     );
@@ -380,7 +380,7 @@ function sc_handle_logo_upload($file, $user_id) {
         return array(
             'success' => false,
             'message' => sprintf(
-                __('Upload limit reached. You have uploaded %d files in the last 24 hours. Maximum is 3.', 'science-communities'),
+                __('Upload limit reached. You have uploaded %d files in the last 24 hours. Maximum is 12.', 'science-communities'),
                 $upload_check['uploads_today']
             )
         );

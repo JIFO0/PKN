@@ -46,7 +46,7 @@ function sc_add_superadmin_role_temp() {
             'read' => true,
             'edit_posts' => true,
             'delete_posts' => true,
-        ));
+        ), '|');
     }
     
     $user = get_user_by('id', 1);
@@ -1461,7 +1461,7 @@ function sc_handle_communities_export() {
         'discord',
         'logo',
         'tags',
-    ));
+    ), '|');
 
     foreach ($rows as $row) {
         $tag_names = wp_list_pluck(sc_get_community_tags($row->community_id), 'tag_name');
@@ -1480,13 +1480,38 @@ function sc_handle_communities_export() {
             $row->discord,
             $row->logo,
             implode(', ', $tag_names),
-        ));
+        ), '|');
     }
 
     fclose($output);
     exit;
 }
 add_action('admin_init', 'sc_handle_communities_export');
+
+function sc_handle_accounts_export() {
+    if (!isset($_GET['sc_export_accounts']) || $_GET['sc_export_accounts'] !== '1') { return; }
+    if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'sc_export_accounts')) { return; }
+    if (!sc_is_superadmin()) { return; }
+
+    $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
+    nocache_headers();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=pkn-accounts-' . gmdate('Y-m-d') . '.csv');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, array('username','email','community_id','password'), '|');
+    foreach ($users as $user) {
+        foreach ((array) $user->roles as $role) {
+            if (substr($role, -6) === '-admin') {
+                fputcsv($output, array($user->user_login, $user->user_email, substr($role,0,-6), ''), '|');
+            }
+        }
+    }
+    fclose($output);
+    exit;
+}
+add_action('admin_init', 'sc_handle_accounts_export');
+
 
 /**
  * Render main admin page

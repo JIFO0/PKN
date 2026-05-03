@@ -20,7 +20,7 @@ $selected_tags = isset($_GET['sc_tags']) ? array_map('intval', (array)$_GET['sc_
 $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)$_GET['sc_faculties']) : array();
 ?>
 
-<div class="sc-search-wrapper">
+<div class="sc-search-wrapper" style="background-image:linear-gradient(rgba(255,255,255,.85), rgba(255,255,255,.9)),url('https://old.ug.edu.pl/sites/default/files/styles/adaptive/public/_nodes/budynek/6056/images/p1050110.jpg?itok=CBfWlYvp'); background-size:cover; background-attachment:fixed;">
     <div class="container">
         <!-- Header Section -->
         <div class="sc-search-header">
@@ -179,6 +179,14 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                 <?php endif; ?>
             </form>
         </div>
+
+
+
+        <section class="sc-home-sections">
+            <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_features_title')); ?></h3><p><?php echo esc_html(sc_t('home_features_text')); ?></p></div>
+            <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_request_title')); ?></h3><p><?php echo esc_html(sc_t('home_request_text')); ?></p><a class="sc-search-button" href="<?php echo esc_url(sc_get_admin_page_url(array('action' => 'contact-requests'))); ?>"><?php echo esc_html(sc_t('home_request_cta')); ?></a></div>
+            <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_contact_title')); ?></h3><p><?php echo esc_html(sc_t('home_contact_text')); ?></p></div>
+        </section>
 
         <!-- Quick Links -->
         <div class="sc-quick-links">
