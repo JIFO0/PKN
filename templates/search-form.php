@@ -184,7 +184,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
 
         <section class="sc-home-sections">
             <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_features_title')); ?></h3><p><?php echo esc_html(sc_t('home_features_text')); ?></p></div>
-            <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_request_title')); ?></h3><p><?php echo esc_html(sc_t('home_request_text')); ?></p><a class="sc-search-button" href="<?php echo esc_url(sc_get_admin_page_url(array('action' => 'contact-requests'))); ?>"><?php echo esc_html(sc_t('home_request_cta')); ?></a></div>
+            <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_request_title')); ?></h3><p><?php echo esc_html(sc_t('home_request_text')); ?></p><a class="sc-search-button" href="<?php echo esc_url(admin_url('admin.php?page=pkn-contact-requests')); ?>"><?php echo esc_html(sc_t('home_request_cta')); ?></a></div>
             <div class="sc-home-card"><h3><?php echo esc_html(sc_t('home_contact_title')); ?></h3><p><?php echo esc_html(sc_t('home_contact_text')); ?></p></div>
         </section>
 

@@ -489,7 +489,9 @@ function sc_handle_logo_upload($file, $user_id) {
  * @return string
  */
 function sc_normalize_import_header($header) {
-    $header = strtolower(trim((string) $header));
+    $header = (string) $header;
+    $header = preg_replace('/^\xEF\xBB\xBF/u', '', $header);
+    $header = strtolower(trim($header));
     $header = preg_replace('/^ï»¿/', '', $header);
     $header = preg_replace('/\s+/', '_', $header);
 
@@ -508,6 +510,14 @@ function sc_normalize_import_header($header) {
     );
 
     return isset($aliases[$header]) ? $aliases[$header] : $header;
+}
+
+function sc_import_log($message) {
+    $upload_dir = wp_upload_dir();
+    $log_file = trailingslashit($upload_dir['basedir']) . 'sc-community-import.log';
+    $timestamp = current_time('mysql');
+    error_log('[SC IMPORT] ' . $message);
+    @file_put_contents($log_file, '[' . $timestamp . '] ' . $message . PHP_EOL, FILE_APPEND | LOCK_EX);
 }
 
 /**
@@ -557,8 +567,10 @@ function sc_is_empty_import_row($row) {
  * @return array Result with success status and count
  */
 function sc_import_from_excel($file_path) {
+    sc_import_log('Import started. File: ' . basename((string) $file_path));
     // Check if file exists
     if (!file_exists($file_path)) {
+        sc_import_log('Import failed: file not found.');
         return array('success' => false, 'message' => __('File not found.', 'science-communities'));
     }
     
@@ -568,6 +580,7 @@ function sc_import_from_excel($file_path) {
     // Try to read as CSV first
     $handle = fopen($file_path, 'r');
     if (!$handle) {
+        sc_import_log('Import failed: could not open file.');
         return array('success' => false, 'message' => __('Could not open file.', 'science-communities'));
     }
     
@@ -581,6 +594,10 @@ function sc_import_from_excel($file_path) {
     $headers = array();
     
     $delimiter = sc_detect_csv_delimiter($file_path);
+    sc_import_log('Detected delimiter: "' . $delimiter . '"');
+    $updated_count = 0;
+    $skipped_missing_name = 0;
+    $processed_rows = 0;
 
     while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
         $row_number++;
@@ -588,12 +605,14 @@ function sc_import_from_excel($file_path) {
         // First row is headers
         if ($row_number === 1) {
             $headers = array_map('sc_normalize_import_header', $row);
+            sc_import_log('Headers: ' . implode(', ', $headers));
             continue;
         }
         
         if (sc_is_empty_import_row($row)) {
             continue;
         }
+        $processed_rows++;
 
         // Create associative array from row
         $data = array();
@@ -608,6 +627,7 @@ function sc_import_from_excel($file_path) {
 
         // Required fields
         if ($name === '') {
+            $skipped_missing_name++;
             continue; // Skip rows without name
         }
         
@@ -655,6 +675,7 @@ function sc_import_from_excel($file_path) {
             $community_data['community_id'] = $existing;
             sc_save_community($community_data);
             $community_id = $existing;
+            $updated_count++;
         } else {
             // Create new community
             $new_id = sc_create_community($community_data);
@@ -677,6 +698,7 @@ function sc_import_from_excel($file_path) {
     }
     
     fclose($handle);
+    sc_import_log(sprintf('Import finished. Processed: %d, created: %d, updated: %d, skipped(no name): %d', $processed_rows, $imported_count, $updated_count, $skipped_missing_name));
     
     return array('success' => true, 'count' => $imported_count);
 }
