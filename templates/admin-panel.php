@@ -34,17 +34,7 @@ if (!is_user_logged_in()) {
     return;
 }
 
-if (!sc_is_superadmin()) {
-    echo '<div class="sc-no-access">';
-    echo '<h1>Access Denied</h1>';
-    echo '<p>You need superadmin role. Current user ID: ' . get_current_user_id() . '</p>';
-    echo '<p>Roles: ' . implode(', ', wp_get_current_user()->roles) . '</p>';
-    echo '</div>';
-    return;
-}
-
 echo '<p>Access checks passed! Getting communities...</p>';
-
 
 if (!sc_can_access_admin_panel()) {
     // Display login form if not logged in
@@ -130,6 +120,55 @@ $user_name = sc_get_current_user_name();
         <?php endif; ?>
     </div>
     
+
+    <?php if (!$is_superadmin): ?>
+    <div class="sc-admin-account-tools">
+        <h2 class="sc-admin-section-title"><?php _e('Account & Requests', 'science-communities'); ?></h2>
+
+        <div class="sc-form-section">
+            <h3><?php _e('Change display name', 'science-communities'); ?></h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <input type="hidden" name="action" value="sc_update_admin_profile">
+                <?php wp_nonce_field('sc_update_admin_profile', 'sc_update_admin_profile_nonce'); ?>
+                <input type="text" name="display_name" required value="<?php echo esc_attr(wp_get_current_user()->display_name); ?>">
+                <button type="submit" class="sc-submit-button"><?php _e('Save name', 'science-communities'); ?></button>
+            </form>
+        </div>
+
+        <div class="sc-form-section">
+            <h3><?php _e('Request community removal', 'science-communities'); ?></h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <input type="hidden" name="action" value="sc_request_community_removal">
+                <?php wp_nonce_field('sc_request_community_removal', 'sc_request_community_removal_nonce'); ?>
+                <select name="community_id" required>
+                    <option value=""><?php _e('Select your community', 'science-communities'); ?></option>
+                    <?php foreach ($editable_communities as $community): ?>
+                        <option value="<?php echo esc_attr($community['community_id']); ?>"><?php echo esc_html($community['name'] . ' (' . $community['community_id'] . ')'); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <textarea name="request_message" rows="3" required placeholder="<?php esc_attr_e('Reason for removal request…', 'science-communities'); ?>"></textarea>
+                <button type="submit" class="sc-submit-button"><?php _e('Send removal request', 'science-communities'); ?></button>
+            </form>
+        </div>
+
+        <div class="sc-form-section">
+            <h3><?php _e('General request to superadmins', 'science-communities'); ?></h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <input type="hidden" name="action" value="sc_submit_general_request">
+                <?php wp_nonce_field('sc_submit_general_request', 'sc_submit_general_request_nonce'); ?>
+                <select name="community_id" required>
+                    <option value=""><?php _e('Select related community', 'science-communities'); ?></option>
+                    <?php foreach ($editable_communities as $community): ?>
+                        <option value="<?php echo esc_attr($community['community_id']); ?>"><?php echo esc_html($community['name'] . ' (' . $community['community_id'] . ')'); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <textarea name="request_message" rows="4" required placeholder="<?php esc_attr_e('Write your request…', 'science-communities'); ?>"></textarea>
+                <button type="submit" class="sc-submit-button"><?php _e('Send request', 'science-communities'); ?></button>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="sc-admin-content">
         <div class="sc-admin-communities">
             <h2 class="sc-admin-section-title">
