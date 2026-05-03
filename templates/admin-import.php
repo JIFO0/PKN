@@ -121,3 +121,16 @@ settings_errors('pkn_messages');
         </p>
     </div>
 </div>
+
+<?php
+$upload_dir = wp_upload_dir();
+$log_file = trailingslashit($upload_dir['basedir']) . 'sc-community-import.log';
+if (file_exists($log_file)):
+    $log_lines = @file($log_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $log_lines = is_array($log_lines) ? array_slice($log_lines, -20) : array();
+?>
+<div class="card" style="max-width: 800px; margin-top: 20px;">
+    <h2><?php _e('Last import log entries', 'science-communities'); ?></h2>
+    <pre style="background:#111;color:#f3f3f3;padding:12px;max-height:280px;overflow:auto;"><?php echo esc_html(implode("\n", $log_lines)); ?></pre>
+</div>
+<?php endif; ?>

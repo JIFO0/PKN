@@ -15,6 +15,7 @@
     border-left-color: var(--ug-blue);
     background: var(--ug-white);
     padding: 18px;
+    overflow: hidden;
 }
 
 .sc-forum-sidebar-header,
@@ -31,6 +32,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
 }
 .sc-forum-create-thread {
     margin: 18px 0 0;
@@ -174,6 +178,7 @@
 .sc-forum-refresh-messages,
 .sc-forum-close-thread {
     white-space: nowrap;
+    max-width: 100%;
 }
 
 @media (max-width: 640px) {
