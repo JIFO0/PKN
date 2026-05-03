@@ -936,6 +936,7 @@ function sc_handle_add_community() {
         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
         'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
         'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+        'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
     );
 
     $result = sc_save_community($data);
@@ -992,6 +993,7 @@ function sc_handle_edit_community() {
         'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
         'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
         'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
+        'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
     );
 
     $result = sc_save_community($data);

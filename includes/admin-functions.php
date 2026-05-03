@@ -193,6 +193,9 @@ function sc_save_community($data) {
         if (isset($data['team_images']) && is_array($data['team_images'])) {
             sc_save_community_images($community_id, 'team', $data['team_images']);
         }
+        if (isset($data['gallery_images']) && is_array($data['gallery_images'])) {
+            sc_save_community_images($community_id, 'gallery', $data['gallery_images']);
+        }
 
         return true;
     }
@@ -224,6 +227,9 @@ function sc_save_community($data) {
     }
     if (isset($data['team_images']) && is_array($data['team_images'])) {
         sc_save_community_images($community_id, 'team', $data['team_images']);
+    }
+    if (isset($data['gallery_images']) && is_array($data['gallery_images'])) {
+        sc_save_community_images($community_id, 'gallery', $data['gallery_images']);
     }
 
     return true;

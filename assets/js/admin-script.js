@@ -114,6 +114,67 @@ jQuery(document).ready(function($) {
         // Reset file input
         $(this).val('');
     });
+
+    $('#sc-gallery-upload').on('change', function(e) {
+        var files = Array.from(e.target.files || []);
+        if (!files.length || typeof scienceCommunitiesData === 'undefined') return;
+
+        var $progress = $('.sc-gallery-progress');
+        var $bar = $progress.find('.sc-progress-bar');
+        var $message = $('.sc-gallery-upload-message');
+        var $textarea = $('#sc-gallery-images');
+        var uploadedCount = 0;
+        var failedCount = 0;
+        var total = files.length;
+
+        $message.html('').removeClass('error success');
+        $progress.show();
+        $bar.css('width', '0%');
+
+        function appendUrl(url) {
+            var current = $textarea.val().trim();
+            $textarea.val(current ? current + '\n' + url : url);
+        }
+
+        function uploadSingle(index) {
+            if (index >= total) {
+                $progress.hide();
+                $bar.css('width', '0%');
+                var cls = failedCount ? 'error' : 'success';
+                $message.addClass(cls).html('Gallery upload complete. Uploaded: ' + uploadedCount + ', failed: ' + failedCount + '.');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('action', 'sc_upload_logo');
+            formData.append('nonce', scienceCommunitiesData.nonce);
+            formData.append('logo_file', files[index]);
+
+            $.ajax({
+                url: scienceCommunitiesData.ajaxUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false
+            }).done(function(response) {
+                if (response.success && response.data && response.data.url) {
+                    appendUrl(response.data.url);
+                    uploadedCount += 1;
+                } else {
+                    failedCount += 1;
+                }
+            }).fail(function() {
+                failedCount += 1;
+            }).always(function() {
+                var percent = Math.round(((index + 1) / total) * 100);
+                $bar.css('width', percent + '%');
+                uploadSingle(index + 1);
+            });
+        }
+
+        uploadSingle(0);
+        $(this).val('');
+    });
 });
 
     $('#sc-pull-facebook').on('click', function() {
