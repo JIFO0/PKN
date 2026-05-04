@@ -104,7 +104,9 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
         $tag_conditions = array();
         
         // Handle numeric tag IDs or tag names
-        foreach ($tags as $tag) {
+        $tags = sc_normalize_tags_input($tags);
+
+    foreach ($tags as $tag) {
             if (is_numeric($tag)) {
                 $tag_conditions[] = $wpdb->prepare("t.id = %d", $tag);
             } else {
@@ -487,6 +489,31 @@ function sc_update_community($community_data) {
     return true;
 }
 
+
+function sc_normalize_tags_input($tags) {
+    $normalized = array();
+
+    foreach ((array) $tags as $tag) {
+        if (is_array($tag) || is_object($tag)) {
+            continue;
+        }
+
+        $tag_name = sanitize_text_field((string) $tag);
+        if ($tag_name === '') {
+            continue;
+        }
+
+        // Legacy broken entries like "tag1; tag2" should be dropped entirely.
+        if (strpos($tag_name, ';') !== false) {
+            continue;
+        }
+
+        $normalized[] = $tag_name;
+    }
+
+    return array_values(array_unique($normalized));
+}
+
 /**
  * Update tags for a community
  * 
@@ -505,6 +532,8 @@ function sc_update_community_tags($community_id, $tags) {
         array('community_id' => $community_id)
     );
     
+    $tags = sc_normalize_tags_input($tags);
+
     foreach ($tags as $tag) {
         $tag_id = null;
         

@@ -9,10 +9,11 @@ if (!is_user_logged_in() || !sc_user_can_edit_any_community()) {
     return;
 }
 
-$stats = sc_get_statistics_data();
 global $wpdb;
-$apps_table = $wpdb->prefix . 'science_community_applications';
 $editable_ids = array_map(function($c){ return $c['community_id']; }, sc_get_editable_communities());
+$stats = sc_get_statistics_data($editable_ids);
+
+$apps_table = $wpdb->prefix . 'science_community_applications';
 $applications = array();
 if (!empty($editable_ids)) {
     $placeholders = implode(',', array_fill(0, count($editable_ids), '%s'));
