@@ -80,6 +80,7 @@ $is_superadmin = sc_is_superadmin();
 $user_name = sc_get_current_user_name();
 $editable_ids = array_map(function($c){ return $c['community_id']; }, $editable_communities);
 $has_unread_applications = false;
+$update_status = function_exists('sc_get_update_status') ? sc_get_update_status() : array('current_version' => SC_PLUGIN_VERSION, 'remote_version' => '', 'has_update' => false);
 if (!empty($editable_ids)) {
     global $wpdb;
     $apps_table = $wpdb->prefix . 'science_community_applications';
@@ -129,6 +130,28 @@ if (!empty($editable_ids)) {
             <?php _e('Statistics', 'science-communities'); ?>
             <?php if ($has_unread_applications): ?><span style="position:absolute;right:12px;top:10px;width:10px;height:10px;background:#d00;border-radius:50%;display:inline-block;"></span><?php endif; ?>
         </a>
+        <div class="sc-form-section" style="margin-top:16px;">
+            <h3><?php _e('Plugin updates', 'science-communities'); ?></h3>
+            <p><strong><?php _e('Installed version:', 'science-communities'); ?></strong> <?php echo esc_html($update_status['current_version']); ?></p>
+            <p><strong><?php _e('GitHub version:', 'science-communities'); ?></strong> <?php echo esc_html($update_status['remote_version'] ?: __('Unavailable', 'science-communities')); ?></p>
+            <?php if (isset($_GET['sc_update_status']) && $_GET['sc_update_status'] === 'success'): ?>
+                <div class="notice notice-success"><p><?php _e('Plugin updated successfully.', 'science-communities'); ?></p></div>
+            <?php elseif (isset($_GET['sc_update_status']) && $_GET['sc_update_status'] === 'failed'): ?>
+                <div class="notice notice-error"><p><?php _e('Plugin update failed. Please check server logs.', 'science-communities'); ?></p></div>
+            <?php elseif (isset($_GET['sc_update_status']) && $_GET['sc_update_status'] === 'up_to_date'): ?>
+                <div class="notice notice-info"><p><?php _e('Plugin is already up to date.', 'science-communities'); ?></p></div>
+            <?php endif; ?>
+
+            <?php if (!empty($update_status['has_update'])): ?>
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="sc_run_plugin_update">
+                    <?php wp_nonce_field('sc_manual_plugin_update', 'sc_manual_plugin_update_nonce'); ?>
+                    <button type="submit" class="sc-submit-button"><?php _e('Update now from GitHub', 'science-communities'); ?></button>
+                </form>
+            <?php else: ?>
+                <p><?php _e('No new version available.', 'science-communities'); ?></p>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
     

@@ -17,7 +17,7 @@ try {
 # Resolve root dir relative to THIS script file — works both when
 # double-clicked and when run from a PowerShell session.
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$RootDir    = (Resolve-Path (Join-Path $ScriptDir "..")).Path
+$RootDir    = (Resolve-Path $ScriptDir).Path
 $PluginMain = Join-Path $RootDir "PKN-backend.php"
 $BuildsDir  = Join-Path $RootDir "builds"
 $DistDir    = Join-Path $RootDir ".dist"
@@ -57,8 +57,8 @@ $DestDir = Join-Path $DistDir "pkn-backend"
 if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
  
-$ExactExcludes   = @('.git', '.dist', 'builds')
-$PatternExcludes = @('*.zip')
+$ExactExcludes   = @('.git', '.dist', 'builds', '.vscode', '.vs', '.ignore', '..test')
+$PatternExcludes = @('*.zip', '.gitignore', 'overview v2.txt', 'overwiew v2.txt', 'build.ps1', 'Package-build.sh')
  
 Get-ChildItem -Path $RootDir -Force | Where-Object {
     $name = $_.Name
