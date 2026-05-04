@@ -68,15 +68,23 @@ function sc_track_search_term_for_results($search_term, $communities) {
     }
 }
 
-function sc_get_tag_usage_statistics() {
+function sc_get_tag_usage_statistics($community_ids = array()) {
     global $wpdb;
     $tags_table = $wpdb->prefix . 'science_tags';
     $relations_table = $wpdb->prefix . 'science_community_tags';
 
+    $community_ids = array_values(array_filter(array_map('sanitize_text_field', (array) $community_ids)));
+    $join_filter_sql = '';
+
+    if (!empty($community_ids)) {
+        $placeholders = implode(',', array_fill(0, count($community_ids), '%s'));
+        $join_filter_sql = $wpdb->prepare(" AND r.community_id IN ($placeholders)", $community_ids);
+    }
+
     return $wpdb->get_results(
         "SELECT t.tag_name, COUNT(r.community_id) AS usage_count
         FROM $tags_table t
-        LEFT JOIN $relations_table r ON t.id = r.tag_id
+        LEFT JOIN $relations_table r ON t.id = r.tag_id" . $join_filter_sql . "
         GROUP BY t.id, t.tag_name
         ORDER BY usage_count DESC, t.tag_name ASC"
     );
@@ -122,16 +130,25 @@ function sc_get_dashboard_data() {
     );
 }
 
-function sc_get_statistics_data() {
+function sc_get_statistics_data($community_ids = array()) {
     global $wpdb;
     $communities_table = $wpdb->prefix . 'science_communities';
     $stats_table = $wpdb->prefix . 'science_community_statistics';
+
+    $community_ids = array_values(array_filter(array_map('sanitize_text_field', (array) $community_ids)));
+    $community_filter_sql = '';
+
+    if (!empty($community_ids)) {
+        $placeholders = implode(',', array_fill(0, count($community_ids), '%s'));
+        $community_filter_sql = $wpdb->prepare(" AND c.community_id IN ($placeholders)", $community_ids);
+    }
 
     return array(
         'views_per_community' => $wpdb->get_results(
             "SELECT c.community_id, c.name, COUNT(s.id) AS total_views
              FROM $communities_table c
              LEFT JOIN $stats_table s ON s.community_id = c.community_id AND s.event_type = 'view'
+             WHERE 1=1" . $community_filter_sql . "
              GROUP BY c.community_id, c.name
              ORDER BY total_views DESC, c.name ASC"
         ),
@@ -139,7 +156,7 @@ function sc_get_statistics_data() {
             "SELECT c.community_id, c.name, s.event_value AS platform, COUNT(s.id) AS total_clicks
              FROM $stats_table s
              INNER JOIN $communities_table c ON c.community_id = s.community_id
-             WHERE s.event_type = 'social_click'
+             WHERE s.event_type = 'social_click'" . $community_filter_sql . "
              GROUP BY c.community_id, c.name, s.event_value
              ORDER BY total_clicks DESC, c.name ASC"
         ),
@@ -147,10 +164,10 @@ function sc_get_statistics_data() {
             "SELECT c.community_id, c.name, s.event_value AS search_term, COUNT(s.id) AS hits
              FROM $stats_table s
              INNER JOIN $communities_table c ON c.community_id = s.community_id
-             WHERE s.event_type = 'search_term'
+             WHERE s.event_type = 'search_term'" . $community_filter_sql . "
              GROUP BY c.community_id, c.name, s.event_value
              ORDER BY hits DESC, c.name ASC"
         ),
-        'tag_popularity' => sc_get_tag_usage_statistics(),
+        'tag_popularity' => sc_get_tag_usage_statistics($community_ids),
     );
 }

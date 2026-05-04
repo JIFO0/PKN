@@ -560,6 +560,18 @@ function sc_is_empty_import_row($row) {
     return true;
 }
 
+
+function sc_parse_import_tags($tags_raw) {
+    $tags_raw = trim((string) $tags_raw);
+    if ($tags_raw === '' || strpos($tags_raw, ';') !== false) {
+        return array();
+    }
+
+    // Preferred separator for import files is pipe: tag1|tag2|tag3.
+    $parts = preg_split('/[|,]/', $tags_raw);
+    return sc_normalize_tags_input(array_map('trim', (array) $parts));
+}
+
 /**
  * Import communities from Excel file
  *
@@ -693,11 +705,9 @@ function sc_import_from_excel($file_path) {
         }
         
         // Handle tags
-        if (!empty($data['tags'])) {
-            $tags = array_map('trim', explode(',', $data['tags']));
-            if (!empty($community_id)) {
-                sc_update_community_tags($community_id, $tags);
-            }
+        if (!empty($community_id) && !empty($data['tags'])) {
+            $tags = sc_parse_import_tags($data['tags']);
+            sc_update_community_tags($community_id, $tags);
         }
     }
     
