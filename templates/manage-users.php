@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
         } else {
             $user_id = username_exists($username);
             if (!$user_id && email_exists($email) == false) {
-                $password = !empty($csv_password) ? $csv_password : wp_generate_password();
+                $password = !empty($password_raw) ? $password_raw : wp_generate_password();
                 $user_id = wp_create_user($username, $password, $email);
                 if (!is_wp_error($user_id)) {
                     $user = get_user_by('id', $user_id);
@@ -63,16 +63,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
         $created_count = 0;
         $assigned_count = 0;
         $delimiter = sc_detect_csv_delimiter($_FILES['users_csv']['tmp_name']);
+        $headers = array();
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             $row++;
-            if ($row === 1 && isset($data[0]) && strtolower(trim($data[0])) === 'username') {
-                continue;
+
+            if ($row === 1) {
+                $headers = array_map(function($header) {
+                    $header = strtolower(trim((string) $header));
+                    return preg_replace('/[^a-z0-9_]/', '', $header);
+                }, $data);
+
+                if (in_array('username', $headers, true)) {
+                    continue;
+                }
+
+                // No header row: process this row as data with legacy positional format.
+                $headers = array('username', 'email', 'community_id', 'password');
             }
 
-            $username = sanitize_user($data[0] ?? '');
-            $email = sanitize_email($data[1] ?? '');
-            $community_id = sanitize_text_field($data[2] ?? '');
-            $csv_password = isset($data[3]) ? trim((string) $data[3]) : '';
+            $row_data = array();
+            foreach ($headers as $index => $header) {
+                if ($header === '') {
+                    continue;
+                }
+                $row_data[$header] = isset($data[$index]) ? trim((string) $data[$index]) : '';
+            }
+
+            $username = sanitize_user($row_data['username'] ?? '');
+            $email = sanitize_email($row_data['email'] ?? '');
+            $community_id = sanitize_text_field($row_data['community_id'] ?? '');
+            $csv_password = isset($row_data['password']) ? trim((string) $row_data['password']) : '';
 
             if (empty($username) || empty($email) || empty($community_id)) {
                 continue;
@@ -80,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
 
             $user_id = username_exists($username);
             if (!$user_id && email_exists($email) == false) {
-                $password = !empty($password_raw) ? $password_raw : wp_generate_password();
+                $password = !empty($csv_password) ? $csv_password : wp_generate_password();
                 $user_id = wp_create_user($username, $password, $email);
                 if (!is_wp_error($user_id)) {
                     $created_count++;
