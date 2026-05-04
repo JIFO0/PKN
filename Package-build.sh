@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_MAIN="$ROOT_DIR/PKN-backend.php"
 BUILDS_DIR="$ROOT_DIR/builds"
 DIST_DIR="$ROOT_DIR/.dist"
@@ -25,6 +25,15 @@ rsync -a --delete \
   --exclude '.git' \
   --exclude '.dist' \
   --exclude 'builds' \
+  --exclude 'Package-build.sh' \
+  --exclude 'build.ps1' \
+  --exclude 'overwiew v2.txt' \
+  --exclude 'overview v2.txt' \
+  --exclude '.gitignore' \
+  --exclude '..test' \
+  --exclude '.ignore' \
+  --exclude '.vs' \
+  --exclude '.vscode' \
   --exclude '*.zip' \
   "$ROOT_DIR/" "$DIST_DIR/pkn-backend/"
 
