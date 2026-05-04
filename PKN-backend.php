@@ -26,6 +26,7 @@ require_once SC_PLUGIN_PATH . 'includes/auth.php';
 require_once SC_PLUGIN_PATH . 'includes/error-logger.php';
 require_once SC_PLUGIN_PATH . 'includes/statistics.php';
 require_once SC_PLUGIN_PATH . 'includes/forum.php';
+require_once SC_PLUGIN_PATH . 'includes/updater.php';
 
 // Enable debug mode (set to false in production)
 define('SC_DEBUG_MODE', true);
@@ -53,6 +54,7 @@ function sc_add_superadmin_role_temp() {
 add_action('init', 'sc_add_superadmin_role_temp');
 */
 // Fix WordPress JSON errors caused by early output
+add_action('plugins_loaded', 'sc_register_plugin_updater');
 add_action('init', 'sc_clean_output_for_json', 1);
 function sc_clean_output_for_json() {
     if (defined('DOING_AJAX') && DOING_AJAX) {
