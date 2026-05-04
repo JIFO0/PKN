@@ -1,13 +1,13 @@
-{
-    "name": "PKN Backend",
-    "slug": "pkn-backend",
-    "version": "Alpha 0.927",
-    "built_at": "2026-05-04T11:35:03Z",
-    "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/pkn-backend-Alpha-0.927.zip",
-    "details_url": "https://github.com/JIFO0/PKN",
-    "requires_wp": "6.0",
-    "requires_php": "7.4",
-    "tested": "6.5",
-    "description": "Automated build from GitHub builds folder.",
-    "changelog": "See commit history for details."
+﻿{
+  "name": "PKN Backend",
+  "slug": "pkn-backend",
+  "version": "Alpha 0.936",
+  "built_at": "2026-05-04T12:44:29Z",
+  "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/pkn-backend-Alpha-0.936.zip",
+  "details_url": "https://github.com/JIFO0/PKN",
+  "requires_wp": "6.0",
+  "requires_php": "7.4",
+  "tested": "6.5",
+  "description": "Automated build from GitHub builds folder.",
+  "changelog": "See commit history for details."
 }

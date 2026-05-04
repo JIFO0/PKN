@@ -1,6 +1,4 @@
-Copy
-
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
  
@@ -14,7 +12,7 @@ function Exit-Script([int]$Code = 0) {
  
 try {
  
-# Resolve root dir relative to THIS script file — works both when
+# Resolve root dir relative to THIS script file â€” works both when
 # double-clicked and when run from a PowerShell session.
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $RootDir    = (Resolve-Path $ScriptDir).Path
@@ -97,7 +95,7 @@ $Manifest = @"
 "@
  
 $ManifestPath = Join-Path $BuildsDir "latest.json"
-$Manifest | Set-Content -Path $ManifestPath -Encoding UTF8NoBOM
+$Manifest | Set-Content -Path $ManifestPath -Encoding UTF8
  
 Write-Host ""
 Write-Host "Build created   : $ZipPath" -ForegroundColor Green
