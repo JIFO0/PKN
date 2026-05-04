@@ -573,7 +573,6 @@ function sc_import_from_excel($file_path) {
         sc_import_log('Import failed: file not found.');
         return array('success' => false, 'message' => __('File not found.', 'science-communities'));
     }
-    
     // Load PhpSpreadsheet library (included in WordPress via SheetJS CDN alternative)
     // For now, we'll use a CSV conversion approach
     
@@ -584,6 +583,11 @@ function sc_import_from_excel($file_path) {
         return array('success' => false, 'message' => __('Could not open file.', 'science-communities'));
     }
     
+    $bom = fread($handle, 3);
+    if ($bom !== "\xEF\xBB\xBF") {
+        rewind($handle); // No BOM, go back to start
+    }
+
     global $wpdb;
     $communities_table = $wpdb->prefix . 'science_communities';
     $faculties_table = $wpdb->prefix . 'science_faculties';

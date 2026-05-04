@@ -22,7 +22,7 @@ settings_errors('pkn_messages');
     <div class="card" style="max-width: 800px;">
         <h2><?php _e('Upload Excel File', 'science-communities'); ?></h2>
         
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="sc-import-form">
             <?php wp_nonce_field('sc_import_excel', 'sc_import_nonce'); ?>
             
             <table class="form-table">
@@ -121,7 +121,7 @@ settings_errors('pkn_messages');
         </p>
     </div>
 </div>
-
+// At the bottom of import-page.php, after </div> closing .wrap:
 <?php
 $upload_dir = wp_upload_dir();
 $log_file = trailingslashit($upload_dir['basedir']) . 'sc-community-import.log';

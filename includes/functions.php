@@ -684,3 +684,101 @@ function sc_get_faculty_name($faculty_id) {
         $faculty_id
     ));
 }
+
+add_action('wp_ajax_sc_import_communities', function() {
+    @ini_set('display_errors', 0);
+    set_time_limit(600);
+    ini_set('memory_limit', '256M'); // add this
+    check_ajax_referer('sc_import_excel', 'sc_import_nonce');
+    
+    if (!sc_is_superadmin()) {
+        wp_send_json_error(['message' => 'Unauthorized']);
+    }
+
+    if (!isset($_FILES['excel_file'])) {
+        wp_send_json_error(['message' => 'No file uploaded.']);
+    }
+
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    $movefile = wp_handle_upload($_FILES['excel_file'], ['test_form' => false, 'test_type' => false]);
+
+    if (!$movefile || isset($movefile['error'])) {
+        wp_send_json_error(['message' => $movefile['error'] ?? 'Upload failed.']);
+    }
+
+    // Give it time to finish large files
+    set_time_limit(120);
+
+    $imported = sc_import_from_excel($movefile['file']);
+    @unlink($movefile['file']);
+
+    if ($imported['success']) {
+        wp_send_json_success([
+            'message' => sprintf('%d communities imported.', $imported['count'])
+        ]);
+    } else {
+        wp_send_json_error(['message' => $imported['message']]);
+    }
+});
+add_action('admin_footer', function() {
+    $screen = get_current_screen();
+    // Only load on your import page
+    if (!$screen || strpos($screen->id, 'pkn-import') === false) return;
+    if (!sc_is_superadmin()) return;
+    ?>
+    <style>
+    #sc-import-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 99999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+    }
+    #sc-import-overlay.active { display: flex; }
+    #sc-import-overlay .sc-spinner {
+        width: 48px; height: 48px;
+        border: 5px solid #fff;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: sc-spin 0.8s linear infinite;
+    }
+    #sc-import-overlay p { color: #fff; font-size: 16px; margin: 0; }
+    @keyframes sc-spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <div id="sc-import-overlay">
+        <div class="sc-spinner"></div>
+        <p>Importing communities, please wait…</p>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('#sc-import-form');
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('sc-import-overlay').classList.add('active');
+
+            const formData = new FormData(form);
+            formData.set('action', 'sc_import_communities');
+
+            fetch(ajaxurl, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('sc-import-overlay').classList.remove('active');
+                alert(data.success ? '✅ ' + data.data.message : '❌ ' + (data.data?.message ?? 'Import failed.'));
+            })
+            .catch(() => {
+                document.getElementById('sc-import-overlay').classList.remove('active');
+                alert('❌ Network error during import.');
+            });
+        });
+    });
+    </script>
+    <?php
+});
