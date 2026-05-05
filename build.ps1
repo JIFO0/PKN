@@ -107,4 +107,18 @@ Write-Host "Manifest updated: $ManifestPath" -ForegroundColor Green
     Exit-Script 1
 }
  
+if ($env:SC_CREATE_GITHUB_RELEASE -eq '1') {
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        $Tag = "v$Version"
+        gh release view $Tag *> $null
+        if ($LASTEXITCODE -ne 0) {
+            gh release create $Tag $ZipPath --title "PKN Backend $Version" --notes "Automated release for $Version"
+        }
+        gh release upload $Tag $ZipPath --clobber
+        Write-Host "Release asset uploaded to GitHub release: $Tag" -ForegroundColor Green
+    } else {
+        Write-Host "SC_CREATE_GITHUB_RELEASE=1 set but gh CLI is not installed." -ForegroundColor Yellow
+    }
+}
+ 
 Exit-Script 0

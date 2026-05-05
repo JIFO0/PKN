@@ -10,11 +10,7 @@ if (!defined('ABSPATH')) {
 define('SC_UPDATER_GITHUB_OWNER', 'JIFO0');
 define('SC_UPDATER_GITHUB_REPO', 'PKN');
 define('SC_UPDATER_SLUG', 'pkn-backend');
-define('SC_UPDATER_MANIFEST_URL', sprintf(
-    'https://raw.githubusercontent.com/%s/%s/main/builds/latest.json',
-    SC_UPDATER_GITHUB_OWNER,
-    SC_UPDATER_GITHUB_REPO
-));
+define('SC_UPDATER_RELEASE_API_URL', sprintf('https://api.github.com/repos/%s/%s/releases/latest', SC_UPDATER_GITHUB_OWNER, SC_UPDATER_GITHUB_REPO));
 
 function sc_register_plugin_updater() {
     add_filter('pre_set_site_transient_update_plugins', 'sc_check_for_plugin_updates');
@@ -132,30 +128,47 @@ function sc_fetch_update_manifest($force_refresh = false) {
     }
 
     $cached = get_transient($cache_key);
-
     if (is_array($cached)) {
         return $cached;
     }
 
-    $response = wp_remote_get(SC_UPDATER_MANIFEST_URL, array('timeout' => 20));
+    $response = wp_remote_get(SC_UPDATER_RELEASE_API_URL, array(
+        'timeout' => 20,
+        'headers' => array('Accept' => 'application/vnd.github+json', 'User-Agent' => 'PKN-Updater')
+    ));
 
-    if (is_wp_error($response)) {
+    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
         return array();
     }
 
-    $code = wp_remote_retrieve_response_code($response);
-    if ($code !== 200) {
+    $release = json_decode(wp_remote_retrieve_body($response), true);
+    if (!is_array($release)) {
         return array();
     }
 
-    $manifest = json_decode(wp_remote_retrieve_body($response), true);
+    $asset_url = '';
+    if (!empty($release['assets']) && is_array($release['assets'])) {
+        foreach ($release['assets'] as $asset) {
+            if (!empty($asset['name']) && preg_match('/^pkn-backend-.*\.zip$/', $asset['name'])) {
+                $asset_url = $asset['browser_download_url'] ?? '';
+                break;
+            }
+        }
+    }
 
-    if (!is_array($manifest)) {
+    $manifest = array(
+        'version' => ltrim((string) ($release['tag_name'] ?? ''), 'vV'),
+        'package_url' => $asset_url,
+        'details_url' => $release['html_url'] ?? '',
+        'description' => !empty($release['body']) ? wp_kses_post(wp_trim_words($release['body'], 80, '...')) : 'Automatic updates delivered from GitHub Releases.',
+        'changelog' => $release['body'] ?? 'See release notes in the repository.',
+    );
+
+    if (empty($manifest['version']) || empty($manifest['package_url'])) {
         return array();
     }
 
     set_transient($cache_key, $manifest, 2 * HOUR_IN_SECONDS);
-
     return $manifest;
 }
 
