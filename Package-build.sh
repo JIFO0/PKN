@@ -60,3 +60,13 @@ JSON
 
 echo "Build created: $ZIP_PATH"
 echo "Manifest updated: $BUILDS_DIR/latest.json"
+if [[ "${SC_CREATE_GITHUB_RELEASE:-0}" == "1" ]]; then
+  if command -v gh >/dev/null 2>&1; then
+    TAG="v${VERSION}"
+    gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" "$ZIP_PATH" --title "PKN Backend ${VERSION}" --notes "Automated release for ${VERSION}"
+    gh release upload "$TAG" "$ZIP_PATH" --clobber
+    echo "Release asset uploaded to GitHub release: $TAG"
+  else
+    echo "SC_CREATE_GITHUB_RELEASE=1 set but gh CLI is not installed."
+  fi
+fi

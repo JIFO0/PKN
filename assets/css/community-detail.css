@@ -497,3 +497,24 @@
 }
 .sc-detail-social-previews iframe { width: 100%; max-width: 100%; }
 .sc-instagram-preview-card { padding: 12px; font-size: 14px; }
+
+.sc-community-detail-modern .sc-detail-hero { text-align:center; margin-bottom: 24px; }
+.sc-community-detail-modern .sc-detail-logo { margin: 0 auto 18px; border-radius: 50%; }
+.sc-detail-social-icons { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }
+.sc-detail-social-icons img { display:block; object-fit:contain; }
+.sc-detail-social-icons-small img { width:24px; height:24px; }
+.sc-detail-social-icons-large img { width:40px; height:40px; }
+.sc-community-detail-modern .sc-detail-title { text-align:center; margin-top: 14px; }
+.sc-community-detail-modern .sc-detail-short-description { text-align:center; font-style: italic; background: #f2f7ff; border-left: none; border-top: 3px solid var(--ug-cyan); }
+.sc-community-detail-modern .sc-detail-description { max-width: 900px; margin: 0 auto 24px; }
+.sc-detail-social-block { margin: 32px auto; text-align:center; }
+.sc-detail-actions { display:flex; gap:12px; justify-content:center; margin: 28px 0; }
+.sc-detail-actions button { min-width: 160px; padding: 12px 20px; border: 0; background: var(--ug-blue); color:#fff; font-weight:700; cursor:pointer; }
+.sc-follow-button { background: var(--ug-gray-700) !important; }
+.sc-detail-id { text-align:center; opacity:.6; font-size: 0.75rem; margin-top: 30px; }
+.sc-detail-social-previews { margin-top: 18px; }
+.sc-apply-modal { position: fixed; inset:0; background: rgba(0,0,0,.55); z-index:9999; display:none; align-items:center; justify-content:center; padding:20px; }
+.sc-apply-modal-content { width:100%; max-width:520px; background:#fff; padding:20px; position:relative; }
+.sc-apply-close { position:absolute; top:8px; right:10px; background:none; border:none; font-size:28px; cursor:pointer; }
+.sc-apply-modal-content form { display:flex; flex-direction:column; gap:10px; }
+.sc-apply-modal-content input, .sc-apply-modal-content textarea { width:100%; border:1px solid var(--ug-gray-300); padding:10px; }

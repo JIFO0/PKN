@@ -528,6 +528,11 @@
     .sc-search-box {
         flex-direction: column;
     }
+
+    .sc-search-icon {
+        top: 22px;
+        transform: none;
+    }
     
     .sc-search-button {
         width: 100%;
