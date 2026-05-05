@@ -7,7 +7,7 @@ CONTENT_TYPE: application/x-www-form-urlencoded, referer: https://kola.ug.edu.pl
 POST keys: action, sc_community_add_flag, sc_add_community_nonce, _wp_http_referer, name, shortdescription, description, webpage, facebook, instagram, tiktok, discord, logo, referer: https://kola.ug.edu.pl/sc-admin/?action=add
 [php:notice] [pid 17848:tid 1904] [client 127.0.0.1:57570]
 
-Error (ER2) When editing a community the whole Image upload part doesn't really work. It just shows a gray box with class .sc-upload-progress and nothing changes. NOTE: I'm using APACHE on XAMPP and I cannot yet confirm if it is a XAMPP issue or a code issue that will persist on other websites, so we need some troubleshooting there
+Error (ER2) When editing a community the whole Image upload part doesn't really work. It just shows a gray box with class .sc-upload-progress and nothing changes. NOTE: I'm using APACHE on XAMPP and I cannot yet confirm if it is a XAMPP iss ue or a code issue that will persist on other websites, so we need some troubleshooting there
 
 Missing feature (MF1) There should be an UPLOAD LOGO logo feature with the same limitations in add-community
 RZECZY POWYŻEJ SĄ JUŻ WPROWADZONE, reszta niebardzo
@@ -91,3 +91,22 @@ ER3: Prevent footer overlap caused by `html, body, #page { height: 100%; }` by a
 MF1: Add UG-style decorative background strip + underline for key titles.
 MF2: Improve language handling visibility in Forum/Statistics by exposing PL/EN toggle there.
 Pending: Build a full UG-like header replacement with logo text/icons once final design asset file is provided.
+
+
+
+
+System zgłoszeń
+Strona główna
+Tagi spierdolone
+Placeholder description
+Menu
+
+
+
+
+
+W dzień otwarty 2024 roku 
+
+Things on my main page - a nice hero with an animated sc searchbox that appears.
+Then there should be 
+

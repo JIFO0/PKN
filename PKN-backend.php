@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PKN Backend
  * Description: Plugin do zarządzania kołami naukowymi na PKN
- * Version: Alpha 0.941
+ * Version: Alpha 0.942
  * Author: Iwo laskowski & PKN TEAM
  * Text Domain: pkn-backend
  */
