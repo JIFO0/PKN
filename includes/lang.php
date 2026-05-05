@@ -84,3 +84,17 @@ function sc_render_lang_toggle() {
 
     echo '<a class="sc-lang-toggle" href="' . esc_url($target_url) . '">' . esc_html($label) . '</a>';
 }
+
+function sc_render_lang_header_toggle_shortcode() {
+    $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
+    $base_url = home_url($request_uri);
+    $pl_url = add_query_arg('lang', 'pl', remove_query_arg('lang', $base_url));
+    $en_url = add_query_arg('lang', 'en', remove_query_arg('lang', $base_url));
+
+    return '<span class="sc-lang-header-toggle">'
+        . '<a href="' . esc_url($en_url) . '">EN</a>'
+        . '<span class="sc-lang-header-separator"> </span>'
+        . '<a href="' . esc_url($pl_url) . '">PL</a>'
+        . '</span>';
+}
+add_shortcode('sc_lang_header_toggle', 'sc_render_lang_header_toggle_shortcode');

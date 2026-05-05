@@ -563,13 +563,31 @@ function sc_is_empty_import_row($row) {
 
 function sc_parse_import_tags($tags_raw) {
     $tags_raw = trim((string) $tags_raw);
-    if ($tags_raw === '' || strpos($tags_raw, ';') !== false) {
+    if ($tags_raw === '') {
         return array();
     }
 
-    // Preferred separator for import files is pipe: tag1|tag2|tag3.
-    $parts = preg_split('/[|,]/', $tags_raw);
+    // Supported separators: | , ; /
+    $parts = preg_split('/[|,;\/]+/', $tags_raw);
     return sc_normalize_tags_input(array_map('trim', (array) $parts));
+}
+
+function sc_cleanup_broken_semicolon_tags() {
+    global $wpdb;
+    $tags_table = $wpdb->prefix . 'science_tags';
+    $relations_table = $wpdb->prefix . 'science_community_tags';
+
+    $broken_ids = $wpdb->get_col("SELECT id FROM $tags_table WHERE tag_name LIKE '%;%'");
+    if (empty($broken_ids)) {
+        return 0;
+    }
+
+    foreach ($broken_ids as $tag_id) {
+        $wpdb->delete($relations_table, array('tag_id' => (int) $tag_id), array('%d'));
+        $wpdb->delete($tags_table, array('id' => (int) $tag_id), array('%d'));
+    }
+
+    return count($broken_ids);
 }
 
 /**
@@ -580,6 +598,10 @@ function sc_parse_import_tags($tags_raw) {
  */
 function sc_import_from_excel($file_path) {
     sc_import_log('Import started. File: ' . basename((string) $file_path));
+    $removed_broken_tags = sc_cleanup_broken_semicolon_tags();
+    if ($removed_broken_tags > 0) {
+        sc_import_log('Removed broken tags containing semicolons: ' . (int) $removed_broken_tags);
+    }
     // Check if file exists
     if (!file_exists($file_path)) {
         sc_import_log('Import failed: file not found.');

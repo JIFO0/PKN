@@ -498,17 +498,15 @@ function sc_normalize_tags_input($tags) {
             continue;
         }
 
-        $tag_name = sanitize_text_field((string) $tag);
-        if ($tag_name === '') {
-            continue;
+        $tag_name = (string) $tag;
+        $parts = preg_split('/[|,;\/]+/', $tag_name);
+        foreach ((array) $parts as $part) {
+            $clean_tag = sanitize_text_field(trim((string) $part));
+            if ($clean_tag === '') {
+                continue;
+            }
+            $normalized[] = $clean_tag;
         }
-
-        // Legacy broken entries like "tag1; tag2" should be dropped entirely.
-        if (strpos($tag_name, ';') !== false) {
-            continue;
-        }
-
-        $normalized[] = $tag_name;
     }
 
     return array_values(array_unique($normalized));

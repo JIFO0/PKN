@@ -13,6 +13,7 @@ if (!sc_is_superadmin()) {
 
 $success_message = '';
 $error_message = '';
+$import_console = array();
 $communities = sc_get_editable_communities();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
@@ -95,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
             $csv_password = isset($row_data['password']) ? trim((string) $row_data['password']) : '';
 
             if (empty($username) || empty($email) || empty($community_id)) {
+                $import_console[] = sprintf('Row %d skipped: missing username/email/community_id.', $row);
                 continue;
             }
 
@@ -104,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
                 $user_id = wp_create_user($username, $password, $email);
                 if (!is_wp_error($user_id)) {
                     $created_count++;
+                    $import_console[] = sprintf('Row %d: user created (%s).', $row, $username);
                     $user = get_user_by('id', $user_id);
                     if ($user) {
                         $user->add_role('subscriber');
@@ -116,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
             if ($user_id && !is_wp_error($user_id)) {
                 if (sc_assign_community_admin($user_id, $community_id)) {
                     $assigned_count++;
+                    $import_console[] = sprintf('Row %d: assigned %s to %s.', $row, $username, $community_id);
                 }
             }
         }
@@ -188,6 +192,11 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
 
     <?php if (!empty($error_message)): ?>
     <div class="notice notice-error"><p><?php echo esc_html($error_message); ?></p></div>
+    <?php endif; ?>
+    <?php if (!empty($import_console)): ?>
+    <div class="notice notice-info"><p><strong><?php _e('Import console', 'science-communities'); ?></strong></p>
+        <pre style="max-height:220px;overflow:auto;background:#111;color:#f3f3f3;padding:12px;"><?php echo esc_html(implode("\n", $import_console)); ?></pre>
+    </div>
     <?php endif; ?>
 
     <form method="post" class="sc-add-admin-form sc-user-form">

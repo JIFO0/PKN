@@ -10,6 +10,7 @@ if (!sc_is_superadmin()) {
 }
 
 settings_errors('pkn_messages');
+$update_status = function_exists('sc_get_update_status') ? sc_get_update_status() : array('current_version' => SC_PLUGIN_VERSION, 'remote_version' => '', 'has_update' => false);
 ?>
 
 <div class="wrap">
@@ -20,6 +21,19 @@ settings_errors('pkn_messages');
     <hr class="wp-header-end">
     
     <div class="card" style="max-width: 800px;">
+        <h2><?php _e('Plugin Updates', 'science-communities'); ?></h2>
+        <p><strong><?php _e('Installed version:', 'science-communities'); ?></strong> <?php echo esc_html($update_status['current_version']); ?></p>
+        <p><strong><?php _e('GitHub version:', 'science-communities'); ?></strong> <?php echo esc_html($update_status['remote_version'] ?: __('Unavailable', 'science-communities')); ?></p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="sc_run_plugin_update">
+            <?php wp_nonce_field('sc_manual_plugin_update', 'sc_manual_plugin_update_nonce'); ?>
+            <button type="submit" class="button button-primary" <?php disabled(empty($update_status['has_update'])); ?>>
+                <?php echo !empty($update_status['has_update']) ? esc_html__('Update plugin now', 'science-communities') : esc_html__('Plugin is up to date', 'science-communities'); ?>
+            </button>
+        </form>
+    </div>
+
+    <div class="card" style="max-width: 800px; margin-top: 20px;">
         <h2><?php _e('Upload Excel File', 'science-communities'); ?></h2>
         
         <form method="post" enctype="multipart/form-data" id="sc-import-form">
@@ -110,7 +124,7 @@ settings_errors('pkn_messages');
                 <tr>
                     <td><code>tags</code></td>
                     <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Tags separated by commas inside one field (e.g., "Science, Technology, Research")', 'science-communities'); ?></td>
+                    <td><?php _e('Tags separated by | , ; or / inside one field (e.g., "Science|Technology;Research")', 'science-communities'); ?></td>
                 </tr>
             </tbody>
         </table>
@@ -121,7 +135,6 @@ settings_errors('pkn_messages');
         </p>
     </div>
 </div>
-// At the bottom of import-page.php, after </div> closing .wrap:
 <?php
 $upload_dir = wp_upload_dir();
 $log_file = trailingslashit($upload_dir['basedir']) . 'sc-community-import.log';
