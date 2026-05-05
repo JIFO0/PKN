@@ -315,9 +315,15 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                     </a>
                 </h3>
                 
-                <?php if (!empty($community->shortdescription)): ?>
+                <?php
+                $fallback_short = sc_get_lang() === 'en'
+                    ? 'Science Community At the University of Gdańsk'
+                    : 'Koło Naukowe Uniwersytetu Gdańskiego';
+                $shortdescription = !empty($community->shortdescription) ? $community->shortdescription : $fallback_short;
+                if (!empty($shortdescription)):
+                ?>
                 <p class="sc-card-description">
-                    <?php echo esc_html(wp_trim_words($community->shortdescription, 20)); ?>
+                    <?php echo esc_html(wp_trim_words($shortdescription, 20)); ?>
                 </p>
                 <?php endif; ?>
                 
@@ -345,6 +351,9 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 </a>
+                <?php if (!empty($community->contact_email) && !empty($community->open_for_applications)): ?>
+                <button type="button" class="sc-apply-button sc-join-secondary" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html__('Join', 'science-communities'); ?></button>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>

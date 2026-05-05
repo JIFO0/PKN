@@ -446,3 +446,30 @@ select {
   background-color: var(--ug-blue);
   color: var(--ug-white);
 }
+
+.sc-lang-header-toggle a {
+  color: #fff;
+  text-decoration: none;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: color var(--ug-transition-fast);
+}
+.sc-lang-header-toggle a:hover,
+.sc-lang-header-toggle a:focus {
+  color: var(--ug-cyan);
+}
+
+/* New flatter button system for cyan/secondary actions */
+.sc-admin-cta,
+.sc-admin-quick-link,
+.sc-join-secondary {
+  border-radius: 0 !important;
+}
+
+.sc-join-secondary {
+  border: 2px solid var(--ug-blue);
+  background: #fff;
+  color: var(--ug-blue);
+  padding: 10px 16px;
+}
