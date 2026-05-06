@@ -79,6 +79,7 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
                 <button type="button" class="button sc-forum-refresh-messages"><?php echo esc_html(sc_t('refresh')); ?></button>
                 <?php if (sc_is_superadmin()): ?>
                     <button type="button" class="button sc-forum-close-thread"><?php echo esc_html(sc_t('close_thread')); ?></button>
+                    <button type="button" class="button sc-forum-delete-thread" style="display:none;"><?php echo esc_html(sc_t('delete_thread')); ?></button>
                 <?php endif; ?>
             </div>
         </div>
@@ -86,7 +87,16 @@ $active_thread = $active_thread_id ? sc_forum_get_thread($active_thread_id) : nu
         <div class="sc-message-list" id="sc-message-list"></div>
 
         <form class="sc-forum-message-form" id="sc-forum-message-form">
-            <textarea name="message" maxlength="2000" required placeholder="<?php echo esc_attr(sc_t('write_message')); ?>"></textarea>
+            <textarea name="message" maxlength="2000" placeholder="<?php echo esc_attr(sc_t('write_message')); ?>"></textarea>
+            <input type="hidden" name="image_url" class="sc-forum-image-url" value="">
+            <div class="sc-forum-upload-row">
+                <label class="sc-forum-image-upload">
+                    <?php echo esc_html(sc_t('upload_image')); ?>
+                    <input type="file" class="sc-forum-image-input" accept="image/png,image/jpeg,image/jpg,image/webp">
+                </label>
+                <span class="sc-forum-upload-status" aria-live="polite"></span>
+                <button type="button" class="sc-forum-remove-image" style="display:none;"><?php echo esc_html(sc_t('remove_image')); ?></button>
+            </div>
             <button type="submit" class="button button-primary"><?php echo esc_html(sc_t('send')); ?></button>
         </form>
     </div>

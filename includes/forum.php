@@ -82,6 +82,7 @@ function sc_forum_create_tables() {
         thread_id bigint(20) NOT NULL,
         author_id bigint(20) UNSIGNED NOT NULL,
         message_text TEXT NOT NULL,
+        message_image_url VARCHAR(512) DEFAULT '',
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
@@ -93,15 +94,11 @@ function sc_forum_create_tables() {
 }
 
 function sc_forum_maybe_install() {
-    global $wpdb;
-    $threads_table = $wpdb->prefix . 'science_forum_threads';
-    $messages_table = $wpdb->prefix . 'science_forum_messages';
+    $schema_version = '2026-05-06-1';
 
-    $threads_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $threads_table)) === $threads_table);
-    $messages_exists = ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $messages_table)) === $messages_table);
-
-    if (!$threads_exists || !$messages_exists) {
+    if (get_option('sc_forum_schema_version') !== $schema_version) {
         sc_forum_create_tables();
+        update_option('sc_forum_schema_version', $schema_version);
     }
 
     sc_forum_ensure_general_thread();
@@ -223,6 +220,7 @@ function sc_forum_format_message_row($row) {
         'role_label' => sc_forum_get_user_role_label((int) $row['author_id']),
         'community_label' => sc_forum_get_user_communities_label((int) $row['author_id']),
         'message_text' => $row['message_text'],
+        'message_image_url' => isset($row['message_image_url']) ? $row['message_image_url'] : '',
         'created_at' => $row['created_at'],
         'updated_at' => $row['updated_at'],
         'is_edited' => ($row['updated_at'] !== $row['created_at']),
@@ -238,9 +236,13 @@ function sc_forum_get_messages($thread_id) {
 
     $rows = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT id, thread_id, author_id, message_text, created_at, updated_at
-             FROM {$messages_table}
-             WHERE thread_id = %d
+            "SELECT * FROM (
+                SELECT id, thread_id, author_id, message_text, message_image_url, created_at, updated_at
+                FROM {$messages_table}
+                WHERE thread_id = %d
+                ORDER BY created_at DESC, id DESC
+                LIMIT 150
+             ) recent_messages
              ORDER BY created_at ASC, id ASC",
             $thread_id
         ),
@@ -309,6 +311,7 @@ function sc_forum_ajax_create_thread() {
     $user_id = get_current_user_id();
     $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
     $message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
+    $image_url = isset($_POST['image_url']) ? esc_url_raw(wp_unslash($_POST['image_url'])) : '';
 
     if (empty($title) || empty($message)) {
         wp_send_json_error(__('Thread title and first message are required.', 'science-communities'));
@@ -346,8 +349,9 @@ function sc_forum_ajax_create_thread() {
             'thread_id' => $thread_id,
             'author_id' => $user_id,
             'message_text' => $message,
+            'message_image_url' => $image_url,
         ),
-        array('%d', '%d', '%s')
+        array('%d', '%d', '%s', '%s')
     );
 
     $wpdb->query($wpdb->prepare(
@@ -386,8 +390,9 @@ function sc_forum_ajax_post_message() {
 
     $thread_id = isset($_POST['thread_id']) ? intval($_POST['thread_id']) : 0;
     $message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
+    $image_url = isset($_POST['image_url']) ? esc_url_raw(wp_unslash($_POST['image_url'])) : '';
 
-    if ($thread_id <= 0 || empty($message)) {
+    if ($thread_id <= 0 || (empty($message) && empty($image_url))) {
         wp_send_json_error(__('Thread and message are required.', 'science-communities'));
     }
 
@@ -419,8 +424,9 @@ function sc_forum_ajax_post_message() {
             'thread_id' => $thread_id,
             'author_id' => $user_id,
             'message_text' => $message,
+            'message_image_url' => $image_url,
         ),
-        array('%d', '%d', '%s')
+        array('%d', '%d', '%s', '%s')
     );
 
     $wpdb->query($wpdb->prepare(
@@ -468,6 +474,56 @@ function sc_forum_ajax_edit_message() {
         array('%s'),
         array('%d')
     );
+
+    wp_send_json_success(true);
+}
+
+function sc_forum_ajax_upload_image() {
+    sc_forum_ajax_require_access();
+
+    if (empty($_FILES['forum_image'])) {
+        wp_send_json_error(__('No image uploaded.', 'science-communities'));
+    }
+
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+
+    $attachment_id = media_handle_upload('forum_image', 0);
+    if (is_wp_error($attachment_id)) {
+        wp_send_json_error($attachment_id->get_error_message());
+    }
+
+    $url = wp_get_attachment_url($attachment_id);
+    if (!$url) {
+        wp_send_json_error(__('Could not upload image.', 'science-communities'));
+    }
+
+    wp_send_json_success(array('url' => esc_url_raw($url)));
+}
+
+function sc_forum_ajax_delete_thread() {
+    sc_forum_ajax_require_access();
+
+    if (!sc_is_superadmin()) {
+        wp_send_json_error(__('Only superadmins can delete threads.', 'science-communities'));
+    }
+
+    $thread_id = isset($_POST['thread_id']) ? intval($_POST['thread_id']) : 0;
+    if ($thread_id <= 0) {
+        wp_send_json_error(__('Invalid thread.', 'science-communities'));
+    }
+
+    $thread = sc_forum_get_thread($thread_id);
+    if (!$thread || (int) $thread['is_general'] === 1 || (int) $thread['is_closed'] !== 1) {
+        wp_send_json_error(__('Only closed non-general threads can be deleted.', 'science-communities'));
+    }
+
+    global $wpdb;
+    $threads_table = $wpdb->prefix . 'science_forum_threads';
+    $messages_table = $wpdb->prefix . 'science_forum_messages';
+    $wpdb->delete($messages_table, array('thread_id' => $thread_id), array('%d'));
+    $wpdb->delete($threads_table, array('id' => $thread_id), array('%d'));
 
     wp_send_json_success(true);
 }

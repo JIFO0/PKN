@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PKN Backend
  * Description: Plugin do zarządzania kołami naukowymi na PKN
- * Version: Alpha 0.951
+ * Version: Alpha 0.956
  * Author: Iwo laskowski & PKN TEAM
  * Text Domain: pkn-backend
  */
@@ -15,8 +15,8 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SC_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('SC_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('SC_PLUGIN_VERSION', '1.0.0');
-define('SC_VERSION', '1.0.0');
+define('SC_PLUGIN_VERSION', '0.956');
+define('SC_VERSION', '0.956');
 
 // Include required files
 require_once SC_PLUGIN_PATH . 'includes/functions.php';
@@ -98,7 +98,37 @@ function sc_check_file_encoding() {
 }
 // Register deactivation hook
 register_deactivation_hook(__FILE__, 'sc_deactivate_plugin');
+/**
+ * Hide protected navigation items from logged-out visitors.
+ */
+function sc_hide_protected_menu_items_for_guests($items, $menu, $args) {
+    if (is_user_logged_in()) {
+        return $items;
+    }
 
+    $protected_titles = array('forum', 'statistics', 'admin panel', 'admin');
+    foreach ($items as $key => $item) {
+        $title = strtolower(trim(wp_strip_all_tags($item->title)));
+        if (in_array($title, $protected_titles, true)) {
+            unset($items[$key]);
+        }
+    }
+
+    return $items;
+}
+add_filter('wp_get_nav_menu_items', 'sc_hide_protected_menu_items_for_guests', 10, 3);
+
+function sc_hide_protected_page_menu_items_for_guests($pages) {
+    if (is_user_logged_in()) {
+        return $pages;
+    }
+
+    $protected_slugs = array('sc-forum', 'community-statistics', 'sc-admin');
+    return array_values(array_filter($pages, function ($page) use ($protected_slugs) {
+        return !in_array($page->post_name, $protected_slugs, true);
+    }));
+}
+add_filter('get_pages', 'sc_hide_protected_page_menu_items_for_guests');
 /**
  * Plugin activation function
  */
@@ -726,6 +756,26 @@ function sc_enqueue_assets() {
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('science_communities_nonce'),
                 'isSuperadmin' => sc_is_superadmin() ? 1 : 0,
+                'i18n' => array(
+                    'closed' => sc_t('closed'),
+                    'generalChat' => sc_t('general_chat'),
+                    'noMessages' => sc_t('no_messages_yet'),
+                    'edit' => sc_t('edit'),
+                    'delete' => sc_t('delete'),
+                    'report' => sc_t('report'),
+                    'edited' => sc_t('edited'),
+                    'deleteMessageConfirm' => sc_t('delete_message_confirm'),
+                    'deleteThreadConfirm' => sc_t('delete_thread_confirm'),
+                    'editMessagePrompt' => sc_t('edit_message_prompt'),
+                    'reportReasonPrompt' => sc_t('report_reason_prompt'),
+                    'messageReported' => sc_t('message_reported'),
+                    'couldNotUploadImage' => sc_t('could_not_upload_image'),
+                    'uploadingImage' => sc_t('uploading_image'),
+                    'imageAttached' => sc_t('image_attached'),
+                    'couldNotSendMessage' => sc_t('could_not_send_message'),
+                    'couldNotDeleteThread' => sc_t('could_not_delete_thread'),
+                    'page' => sc_t('page_label'),
+                ),
             ));
         }
     }
@@ -769,6 +819,8 @@ function sc_register_ajax_handlers() {
     add_action('wp_ajax_sc_forum_delete_message', 'sc_forum_ajax_delete_message');
     add_action('wp_ajax_sc_forum_close_thread', 'sc_forum_ajax_close_thread');
     add_action('wp_ajax_sc_forum_report_message', 'sc_forum_ajax_report_message');
+     add_action('wp_ajax_sc_forum_upload_image', 'sc_forum_ajax_upload_image');
+    add_action('wp_ajax_sc_forum_delete_thread', 'sc_forum_ajax_delete_thread');
 }
 add_action('init', 'sc_register_ajax_handlers');
 add_action('init', 'sc_forum_maybe_install');

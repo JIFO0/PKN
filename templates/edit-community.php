@@ -138,7 +138,7 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
 ?>
 
 <div class="sc-edit-community">
-    <h1><?php echo esc_html__('Edit Community', 'science-communities'); ?></h1>
+    <h1><?php echo esc_html(sc_t('edit_community')); ?></h1>
 
     <?php if (!empty($success_message)): ?>
         <div class="sc-notice sc-notice-success">
@@ -159,17 +159,17 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
         <?php wp_nonce_field('sc_edit_community', 'sc_edit_community_nonce'); ?>
 
         <div class="sc-form-group">
-            <label for="sc-name"><?php echo esc_html__('Community Name', 'science-communities'); ?></label>
+            <label for="sc-name"><?php echo esc_html(sc_t('community_name')); ?></label>
             <input type="text" id="sc-name" name="name" value="<?php echo esc_attr($community['name']); ?>" required>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-shortdescription"><?php echo esc_html__('Short Description', 'science-communities'); ?></label>
+            <label for="sc-shortdescription"><?php echo esc_html(sc_t('short_description')); ?></label>
             <textarea id="sc-shortdescription" name="shortdescription" required><?php echo esc_textarea($community['shortdescription']); ?></textarea>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc_description_editor"><?php echo esc_html__('Description', 'science-communities'); ?></label>
+            <label for="sc_description_editor"><?php echo esc_html(sc_t('description')); ?></label>
             <?php
             wp_editor(
                 $community['description'],
@@ -187,47 +187,46 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
                 )
             );
             ?>
-            <p class="description"><?php echo esc_html__('Use the editor controls to format the long description.', 'science-communities'); ?></p>
+            <p class="description"><?php echo esc_html(sc_t('editor_help')); ?></p>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-webpage"><?php echo esc_html__('Website URL', 'science-communities'); ?></label>
+            <label for="sc-webpage"><?php echo esc_html(sc_t('website_url')); ?></label>
             <input type="url" id="sc-webpage" name="webpage" value="<?php echo esc_url($community['webpage']); ?>">
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-facebook"><?php echo esc_html__('Facebook URL', 'science-communities'); ?></label>
+            <label for="sc-facebook"><?php echo esc_html(sc_t('facebook_url')); ?></label>
             <input type="url" id="sc-facebook" name="facebook" value="<?php echo esc_url($community['facebook']); ?>">
         </div>
 
-
         <div class="sc-form-group">
-            <button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html__('Pull Data from Facebook', 'science-communities'); ?></button>
+            <<button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html(sc_t('pull_facebook')); ?></button>
             <p id="sc-facebook-pull-status" style="margin-top:8px;"></p>
         </div>
         <div class="sc-form-group">
-            <label for="sc-instagram"><?php echo esc_html__('Instagram URL', 'science-communities'); ?></label>
+            <label for="sc-instagram"><?php echo esc_html(sc_t('instagram_url')); ?></label>
             <input type="url" id="sc-instagram" name="instagram" value="<?php echo esc_url($community['instagram']); ?>">
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-tiktok"><?php echo esc_html__('TikTok URL', 'science-communities'); ?></label>
+            <label for="sc-tiktok"><?php echo esc_html(sc_t('tiktok_url')); ?></label>
             <input type="url" id="sc-tiktok" name="tiktok" value="<?php echo esc_url($community['tiktok']); ?>">
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-discord"><?php echo esc_html__('Discord URL', 'science-communities'); ?></label>
+            <label for="sc-discord"><?php echo esc_html(sc_t('discord_url')); ?></label>
             <input type="url" id="sc-discord" name="discord" value="<?php echo esc_url($community['discord']); ?>">
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-other-links"><?php echo esc_html__('Other links', 'science-communities'); ?></label>
+            <label for="sc-other-links"><?php echo esc_html(sc_t('other_links')); ?></label>
             <textarea id="sc-other-links" name="other_links" rows="3"><?php echo esc_textarea($community['other_links'] ?? ''); ?></textarea>
-            <p class="description"><?php echo esc_html__('Enter one link per line or separate links with commas.', 'science-communities'); ?></p>
+            <p class="description"><?php echo esc_html(sc_t('links_help')); ?></p>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-logo"><?php echo esc_html__('Logo URL', 'science-communities'); ?></label>
+            <label for="sc-logo"><?php echo esc_html(sc_t('logo_url')); ?></label>
             <input type="url" id="sc-logo" name="logo" value="<?php echo esc_url($community['logo']); ?>">
             <div class="sc-logo-preview" style="margin-top:10px;">
                 <img id="sc-logo-preview-image" src="<?php echo esc_url($community['logo']); ?>" alt="Logo preview" style="max-width:180px;max-height:180px;<?php echo empty($community['logo']) ? 'display:none;' : ''; ?>">
@@ -235,19 +234,19 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
             
             <!-- Logo upload section -->
             <div class="sc-logo-upload">
-                <p class="sc-upload-or"><?php _e('— OR —', 'science-communities'); ?></p>
+                <p class="sc-upload-or"><?php echo esc_html(sc_t('or_separator')); ?></p>
                 <label for="sc-logo-upload" class="sc-upload-button">
-                    <?php _e('Upload New Logo', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('upload_new_logo')); ?>
                 </label>
                 <input type="file" id="sc-logo-upload" accept="image/png,image/jpeg,image/jpg,image/webp" style="display:none;">
                 <div class="sc-upload-info">
                     <?php 
                     $upload_status = sc_can_user_upload(get_current_user_id());
                     if ($upload_status['is_superadmin']) {
-                        _e('Unlimited uploads (Superadmin)', 'science-communities');
+                        echo esc_html(sc_t('unlimited_uploads')); 
                     } else {
                         printf(
-                            __('Uploads today: %d/3 (max 2MB, 2048x2048px)', 'science-communities'),
+                            sc_t('uploads_today'),
                             $upload_status['uploads_today']
                         );
                     }
@@ -260,19 +259,19 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
             </div>
         </div>
         <div class="sc-form-group">
-            <label for="sc-contact-email"><?php echo esc_html__('Application contact email', 'science-communities'); ?></label>
+            <label for="sc-contact-email"><?php echo esc_html(sc_t('application_contact_email')); ?></label>
             <input type="email" id="sc-contact-email" name="contact_email" value="<?php echo esc_attr($community['contact_email'] ?? ''); ?>">
         </div>
         <div class="sc-form-group">
             <label>
                 <input type="checkbox" name="open_for_applications" value="1" <?php checked(isset($community['open_for_applications']) ? intval($community['open_for_applications']) : 1, 1); ?>>
-                <?php echo esc_html__('Open for applications', 'science-communities'); ?>
+                <?php echo esc_html(sc_t('open_for_applications')); ?>
             </label>
         </div>
             <div class="sc-form-group">
-            <label for="sc-faculty"><?php echo esc_html__('Faculty', 'science-communities'); ?></label>
+            <label for="sc-faculty"><?php echo esc_html(sc_t('faculty_label')); ?></label>
             <select id="sc-faculty" name="faculty_id">
-                <option value=""><?php echo esc_html__('Select Faculty', 'science-communities'); ?></option>
+                <option value=""><?php echo esc_html(sc_t('select_faculty')); ?></option>
                 <?php
                 global $wpdb;
                 $faculties_table = $wpdb->prefix . 'science_faculties';
@@ -288,16 +287,16 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
             </select>
         </div>
             <div class="sc-form-group">
-            <label for="sc-status"><?php echo esc_html__('Status działalności', 'science-communities'); ?></label>
+            <label for="sc-status"><?php echo esc_html(sc_t('activity_status')); ?></label>
             <select id="sc-status" name="status" required>
                 <option value="active" <?php selected($community['status'], 'active'); ?>>
-                    <?php echo esc_html__('Działa', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('status_active')); ?>
                 </option>
                 <option value="limited" <?php selected($community['status'], 'limited'); ?>>
-                    <?php echo esc_html__('Ograniczono działalność', 'science-communities'); ?>
+                     <?php echo esc_html(sc_t('status_limited')); ?>
                 </option>
                 <option value="suspended" <?php selected($community['status'], 'suspended'); ?>>
-                    <?php echo esc_html__('Zawieszono', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('status_suspended')); ?>
                 </option>
             </select>
         </div>
@@ -307,34 +306,34 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
                 <label for="sc-archived">
                     <input type="checkbox" id="sc-archived" name="is_archived" value="1"
                         <?php checked($community['is_archived'], 1); ?>>
-                    <?php echo esc_html__('Oznacz jako archiwalne', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('mark_archived')); ?>
                 </label>
                 <p class="description">
-                    <?php echo esc_html__('Archiwalne koła są ukryte domyślnie w wynikach wyszukiwania.', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('archived_help')); ?>
                 </p>
             </div>
         <?php endif; ?>
 
         <div class="sc-form-group">
-            <label for="sc-event-images"><?php _e('Event photos (one URL per line)', 'science-communities'); ?></label>
+            <label for="sc-event-images"><?php echo esc_html(sc_t('event_photos_urls')); ?></label>
             <textarea id="sc-event-images" name="event_images" rows="4"><?php echo esc_textarea(implode("\n", $event_images)); ?></textarea>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-team-images"><?php _e('Team photos (one URL per line)', 'science-communities'); ?></label>
+            <label for="sc-team-images"><?php echo esc_html(sc_t('team_photos_urls')); ?></label>
             <textarea id="sc-team-images" name="team_images" rows="4"><?php echo esc_textarea(implode("\n", $team_images)); ?></textarea>
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-gallery-images"><?php _e('Community gallery (one URL per line)', 'science-communities'); ?></label>
+            <label for="sc-gallery-images"><?php echo esc_html(sc_t('community_gallery_urls')); ?></label>
             <textarea id="sc-gallery-images" name="gallery_images" rows="6"><?php echo esc_textarea(implode("\n", $gallery_images)); ?></textarea>
             <div class="sc-logo-upload sc-gallery-upload">
-                <p class="sc-upload-or"><?php _e('— OR —', 'science-communities'); ?></p>
+                <p class="sc-upload-or"><?php echo esc_html(sc_t('or_separator')); ?></p>
                 <label for="sc-gallery-upload" class="sc-upload-button">
-                    <?php _e('Upload Gallery Images', 'science-communities'); ?>
+                    <?php echo esc_html(sc_t('upload_gallery_images')); ?>
                 </label>
                 <input type="file" id="sc-gallery-upload" accept="image/png,image/jpeg,image/jpg,image/webp" multiple style="display:none;">
-                <div class="sc-upload-info"><?php _e('You can select multiple files. Uploaded image URLs will be appended to the gallery list.', 'science-communities'); ?></div>
+                <div class="sc-upload-info"><?php echo esc_html(sc_t('gallery_upload_help')); ?></div>
                 <div class="sc-upload-progress sc-gallery-progress" style="display:none;">
                     <div class="sc-progress-bar"></div>
                 </div>
@@ -342,9 +341,32 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
             </div>
         </div>
         </div>
+<div class="sc-form-group">
+            <label><?php echo esc_html(sc_t('tags')); ?></label>
+            <div class="sc-tags-selector">
+                <?php foreach ($all_tags as $tag): ?>
+                    <label class="sc-tag-item">
+                        <input type="checkbox" name="tags[]" value="<?php echo esc_attr($tag->id); ?>"
+                            <?php checked(in_array($tag->tag_name, $community['tags'], true)); ?>>
+                        <span class="sc-tag-name"><?php echo esc_html($tag->tag_name); ?></span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="sc-form-actions">
+            <button type="submit" class="sc-submit-button">
+                <?php echo esc_html(sc_t('save_changes')); ?>
+            </button>
+            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
+                <?php echo esc_html(sc_t('cancel')); ?>
+            </a>
+        </div>
+    </form>
+</div>
         <?php if (sc_is_superadmin()): ?>
 <div class="sc-form-section">
-    <h3><?php _e('Community Administrators', 'science-communities'); ?></h3>
+    <h3><?php echo esc_html(sc_t('community_administrators')); ?></h3>
     
     <?php
     // Get current admins for this community
@@ -363,76 +385,52 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
                 'community_id' => $community_id,
                 '_wpnonce' => wp_create_nonce('remove_admin')
             ))); ?>" class="sc-remove-admin">
-                <?php _e('Remove', 'science-communities'); ?>
+                <?php echo esc_html(sc_t('remove')); ?>
             </a>
         </li>
         <?php endforeach; ?>
     </ul>
     <?php else: ?>
-    <p><?php _e('No administrators assigned yet.', 'science-communities'); ?></p>
+    <p><?php echo esc_html(sc_t('no_administrators')); ?></p>
     <?php endif; ?>
     
     <p>
         <a href="<?php echo esc_url(add_query_arg('action', 'manage-users', sc_get_admin_page_url())); ?>">
-            <?php _e('Add Administrator', 'science-communities'); ?>
+            <?php echo esc_html(sc_t('add_administrator')); ?>
         </a>
     </p>
 </div>
 <?php endif; ?>
 
-        <div class="sc-form-group">
-            <label><?php echo esc_html__('Tags', 'science-communities'); ?></label>
-            <div class="sc-tags-selector">
-                <?php foreach ($all_tags as $tag): ?>
-                    <label class="sc-tag-item">
-                        <input type="checkbox" name="tags[]" value="<?php echo esc_attr($tag->tag_name); ?>"
-                            <?php checked(in_array($tag->tag_name, $community['tags'])); ?>>
-                        <span class="sc-tag-name"><?php echo esc_html($tag->tag_name); ?></span>
-                    </label>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <div class="sc-form-actions">
-            <button type="submit" class="sc-submit-button">
-                <?php echo esc_html__('Save Changes', 'science-communities'); ?>
-            </button>
-            <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
-                <?php echo esc_html__('Cancel', 'science-communities'); ?>
-            </a>
-        </div>
-    </form>
-</div>
-
 <?php if (sc_is_superadmin()): ?>
 <div class="sc-form-section">
-    <h3><?php _e('Assign user to this community', 'science-communities'); ?></h3>
+    <h3><?php echo esc_html(sc_t('assign_user_to_community')); ?></h3>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="sc_assign_user_to_community">
         <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
         <?php wp_nonce_field('sc_assign_user_to_community', 'sc_assign_user_to_community_nonce'); ?>
         <select name="user_id" required>
-            <option value=""><?php _e('Select user', 'science-communities'); ?></option>
+            <option value=""><?php echo esc_html(sc_t('select_user')); ?></option>
             <?php foreach (get_users(array('orderby' => 'display_name', 'order' => 'ASC')) as $user): ?>
                 <option value="<?php echo esc_attr($user->ID); ?>">
                     <?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?>
                 </option>
             <?php endforeach; ?>
         </select>
-        <button type="submit" class="sc-submit-button"><?php _e('Assign', 'science-communities'); ?></button>
+        <button type="submit" class="sc-submit-button"><?php echo esc_html(sc_t('assign')); ?></button>
     </form>
 </div>
 <?php endif; ?>
 
 <?php if (!sc_is_superadmin()): ?>
 <div class="sc-form-section">
-    <h3><?php _e('Contact Superadmin', 'science-communities'); ?></h3>
+    <h3><?php echo esc_html(sc_t('contact_superadmin')); ?></h3>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="sc_submit_contact_request">
         <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
         <?php wp_nonce_field('sc_contact_request', 'sc_contact_request_nonce'); ?>
-        <textarea name="request_message" rows="4" required placeholder="<?php esc_attr_e('Describe your issue…', 'science-communities'); ?>"></textarea>
-        <button type="submit" class="sc-submit-button"><?php _e('Send request', 'science-communities'); ?></button>
+        <textarea name="request_message" rows="4" required placeholder="<?php echo esc_attr(sc_t('describe_your_issue')); ?>"></textarea>
+        <button type="submit" class="sc-submit-button"><?php echo esc_html(sc_t('send_request')); ?></button>
     </form>
 </div>
 <?php endif; ?>
@@ -450,7 +448,7 @@ jQuery(document).ready(function($) {
                 e.preventDefault();
                 const $button = this.$form.find('button[type="submit"]');
                 const originalText = $button.text();
-                $button.prop('disabled', true).text('Saving...');
+                $button.prop('disabled', true).text('<?php echo esc_js(sc_t('saving')); ?>');
                 
                 $.ajax({
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -476,7 +474,7 @@ jQuery(document).ready(function($) {
         },
         handleError: function(xhr, status, error, $button, originalText) {
             console.error('AJAX Error:', {xhr, status, error});
-            this.showNotice('error', 'An error occurred. Please check the console.');
+            this.showNotice('error', '<?php echo esc_js(sc_t('generic_error')); ?>');
             $button.prop('disabled', false).text(originalText);
         },
         showNotice: function(type, message) {

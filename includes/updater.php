@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 define('SC_UPDATER_GITHUB_OWNER', 'JIFO0');
 define('SC_UPDATER_GITHUB_REPO', 'PKN');
 define('SC_UPDATER_SLUG', 'pkn-backend');
+define('SC_UPDATER_FALLBACK_ZIP_NAME', 'PKN.zip');
 define('SC_UPDATER_RELEASE_API_URL', sprintf('https://api.github.com/repos/%s/%s/releases/latest', SC_UPDATER_GITHUB_OWNER, SC_UPDATER_GITHUB_REPO));
 
 function sc_register_plugin_updater() {
@@ -108,13 +109,59 @@ function sc_plugin_info_popup($result, $action, $args) {
     );
 }
 
+function sc_normalize_release_version($release) {
+    $raw_version = trim((string) ($release['tag_name'] ?? ''));
+
+    if ($raw_version === '' && !empty($release['name'])) {
+        $raw_version = trim((string) $release['name']);
+    }
+
+    if ($raw_version === '') {
+        return '';
+    }
+
+    $raw_version = preg_replace('/^v/i', '', $raw_version);
+
+    if (preg_match('/(alpha|beta|rc)\s*[-_ ]*([0-9]+(?:\.[0-9]+)*)/i', $raw_version, $matches)) {
+        return ucfirst(strtolower($matches[1])) . ' ' . $matches[2];
+    }
+
+    if (preg_match('/([0-9]+(?:\.[0-9]+)+)/', $raw_version, $matches)) {
+        return $matches[1];
+    }
+
+    return $raw_version;
+}
+
+function sc_find_installed_plugin_dir($directory) {
+    $directory = trailingslashit($directory);
+    $main_file = $directory . 'PKN-backend.php';
+    if (file_exists($main_file)) {
+        return $directory;
+    }
+
+    $candidates = glob($directory . '*/PKN-backend.php');
+    if (!empty($candidates)) {
+        return trailingslashit(dirname($candidates[0]));
+    }
+
+    return $directory;
+}
+
 function sc_after_plugin_install($response, $hook_extra, $result) {
     global $wp_filesystem;
 
     $plugin_dir = WP_PLUGIN_DIR . '/pkn-backend';
 
-    if (!empty($result['destination']) && $result['destination'] !== $plugin_dir) {
-        $wp_filesystem->move($result['destination'], $plugin_dir);
+    if (!empty($result['destination'])) {
+        $source_dir = sc_find_installed_plugin_dir($result['destination']);
+
+        if ($source_dir !== trailingslashit($plugin_dir)) {
+            if ($wp_filesystem->exists($plugin_dir)) {
+                $wp_filesystem->delete($plugin_dir, true);
+            }
+            $wp_filesystem->move($source_dir, $plugin_dir);
+        }
         $result['destination'] = $plugin_dir;
     }
 
@@ -149,7 +196,12 @@ function sc_fetch_update_manifest($force_refresh = false) {
     $asset_url = '';
     if (!empty($release['assets']) && is_array($release['assets'])) {
         foreach ($release['assets'] as $asset) {
-            if (!empty($asset['name']) && preg_match('/^pkn-backend-.*\.zip$/', $asset['name'])) {
+            $asset_name = isset($asset['name']) ? (string) $asset['name'] : '';
+            if ($asset_name === '') {
+                continue;
+            }
+
+            if (preg_match('/^pkn-backend-.*\.zip$/i', $asset_name) || strcasecmp($asset_name, SC_UPDATER_FALLBACK_ZIP_NAME) === 0) {
                 $asset_url = $asset['browser_download_url'] ?? '';
                 break;
             }
@@ -157,7 +209,7 @@ function sc_fetch_update_manifest($force_refresh = false) {
     }
 
     $manifest = array(
-        'version' => ltrim((string) ($release['tag_name'] ?? ''), 'vV'),
+        'version' => sc_normalize_release_version($release),
         'package_url' => $asset_url,
         'details_url' => $release['html_url'] ?? '',
         'description' => !empty($release['body']) ? wp_kses_post(wp_trim_words($release['body'], 80, '...')) : 'Automatic updates delivered from GitHub Releases.',

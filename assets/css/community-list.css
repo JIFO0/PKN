@@ -763,3 +763,36 @@
 	color: var(--ug-blue);
 	
 }
+.sc-tag-filter-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.sc-tag-filter-search {
+    flex: 1 1 260px;
+    padding: 12px 14px;
+    border: 2px solid var(--ug-gray-300);
+    background: var(--ug-white);
+}
+
+.sc-tags-expand-toggle {
+    padding: 12px 16px;
+    border: 2px solid var(--ug-primary);
+    color: var(--ug-primary);
+    background: var(--ug-white);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sc-tags-collapsible {
+    max-height: 190px;
+    overflow: hidden;
+    position: relative;
+}
+
+.sc-tags-collapsible.is-expanded {
+    max-height: none;
+    overflow: visible;
+}

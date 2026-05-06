@@ -199,7 +199,12 @@ $default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlo
                     </svg>
                     <?php echo esc_html(sc_t('filter_by_tags')); ?>
                 </label>
-                <div class="sc-filter-tags">
+                <div class="sc-tag-filter-controls">
+                    <label for="sc-list-tag-filter-search" class="screen-reader-text"><?php echo esc_html(sc_t('search_tags_label')); ?></label>
+                    <input type="search" id="sc-list-tag-filter-search" class="sc-tag-filter-search" placeholder="<?php echo esc_attr(sc_t('search_tags_placeholder')); ?>">
+                    <button type="button" class="sc-tags-expand-toggle" id="sc-list-tags-expand-toggle" aria-expanded="false"><?php echo esc_html(sc_t('show_all_tags')); ?></button>
+                </div>
+                <div class="sc-filter-tags sc-tags-collapsible" id="sc-list-tags-grid">
                     <?php foreach ($all_tags as $tag): ?>
                     <label class="sc-filter-tag-item <?php echo in_array($tag->id, $selected_tags) ? 'selected' : ''; ?>">
                         <input
@@ -380,6 +385,24 @@ $default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlo
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const tagSearch = document.getElementById('sc-list-tag-filter-search');
+    const tagGrid = document.getElementById('sc-list-tags-grid');
+    const tagToggle = document.getElementById('sc-list-tags-expand-toggle');
+    if (tagSearch && tagGrid) {
+        tagSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            tagGrid.querySelectorAll('.sc-filter-tag-item').forEach(function(label) {
+                label.style.display = label.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+    }
+    if (tagToggle && tagGrid) {
+        tagToggle.addEventListener('click', function() {
+            const expanded = tagGrid.classList.toggle('is-expanded');
+            tagToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            tagToggle.textContent = expanded ? '<?php echo esc_js(sc_t('collapse_tags')); ?>' : '<?php echo esc_js(sc_t('show_all_tags')); ?>';
+        });
+    }
     const modal = document.getElementById('sc-apply-modal');
     const closeBtn = document.getElementById('sc-apply-close');
     const communityInput = document.getElementById('sc-apply-community-id');

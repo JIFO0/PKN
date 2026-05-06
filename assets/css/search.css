@@ -576,7 +576,7 @@
         padding: 12px 14px;
     }
 }
-.sc-home-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0 40px}.sc-home-card{background:#fff;border:1px solid var(--ug-gray-300);padding:20px}.sc-home-card h3{margin-top:0}
+.sc-home-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin:20px 0 40px}.sc-home-card{background:#fff;border:1px solid var(--ug-gray-300);padding:30px}.sc-home-card h3{margin-top:0}
 
 /* Large tag list controls */
 .sc-filter-option-inline {
@@ -649,4 +649,7 @@
 
 .sc-applications-badge {
     border-left-color: var(--ug-success);
+}
+.sc-home-request-text {
+    padding-bottom: 20px;
 }

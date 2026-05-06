@@ -660,3 +660,22 @@
     flex-direction: column;
   }
 }
+/* Harmonize edit-community action buttons with the UG blue palette. */
+.sc-edit-community .sc-upload-button,
+.sc-edit-community .sc-submit-button,
+.sc-form-section .sc-submit-button {
+  background: var(--ug-blue);
+  color: var(--ug-white);
+  border: 2px solid var(--ug-blue);
+}
+
+.sc-edit-community .sc-upload-button:hover,
+.sc-edit-community .sc-submit-button:hover,
+.sc-form-section .sc-submit-button:hover {
+  background: var(--ug-blue-dark);
+  border-color: var(--ug-blue-dark);
+}
+
+.sc-edit-community .sc-tag-item:hover {
+  border-color: var(--ug-blue);
+}

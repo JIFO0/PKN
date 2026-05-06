@@ -260,7 +260,7 @@
     color: var(--ug-gray-700);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin: 0;
+    margin-bottom: 30px;
     padding: 14px 20px;
     background: var(--ug-gray-100);
     border-bottom: 2px solid var(--ug-gray-300);
