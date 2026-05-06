@@ -1,4 +1,6 @@
-﻿#Requires -Version 5.1
+﻿#BUILDER VERSION 2.11
+
+#Requires -Version 5.1
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
  
@@ -91,27 +93,53 @@ $DestDir = Join-Path $DistDir "pkn-backend"
 if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
  
-$ExactExcludes   = @('.git', '.dist', 'builds', '.vscode', '.vs', '.ignore', '..test')
-$PatternExcludes = @('*.zip', '.gitignore', 'overview v2.txt', 'overwiew v2.txt', 'build.ps1', 'Package-build.sh')
- 
-Get-ChildItem -Path $RootDir -Force | Where-Object {
-    $name = $_.Name
-    $excluded = $false
-    foreach ($ex in $ExactExcludes)   { if ($name -eq $ex)   { $excluded = $true; break } }
-    foreach ($ex in $PatternExcludes) { if ($name -like $ex) { $excluded = $true; break } }
-    -not $excluded
-} | ForEach-Object {
-    $dest = Join-Path $DestDir $_.Name
-    if ($_.PSIsContainer) {
-        Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
+# Move existing PKN.zip into builds/old/ renamed to its version before overwriting
+$CurrentZip = Join-Path $BuildsDir "PKN.zip"
+if (Test-Path $CurrentZip) {
+    $OldDir = Join-Path $BuildsDir "old"
+    New-Item -ItemType Directory -Force -Path $OldDir | Out-Null
+
+    # Read old version from existing latest.json if available, else use timestamp
+    $OldManifest = Join-Path $BuildsDir "latest.json"
+    if (Test-Path $OldManifest) {
+        $OldVersion = (Get-Content $OldManifest | ConvertFrom-Json).version
+        $OldZipName = "pkn-backend-$($OldVersion -replace '[\s/\\]','-').zip"
     } else {
-        Copy-Item -Path $_.FullName -Destination $dest -Force
+        $OldZipName = "pkn-backend-unknown-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip"
+    }
+
+    $OldZipDest = Join-Path $OldDir $OldZipName
+    if (-not (Test-Path $OldZipDest)) {
+        Move-Item -Path $CurrentZip -Destination $OldZipDest
+        Write-Host "Archived previous build: $OldZipDest" -ForegroundColor DarkGray
+    } else {
+        Remove-Item $CurrentZip -Force
+        Write-Host "Old version already archived, removed duplicate." -ForegroundColor DarkGray
     }
 }
- 
-# Create zip archive
+
+# Stage the exact files/folders that belong in the plugin zip
+$DestDir = Join-Path $DistDir "pkn-backend"
+if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+
+# Copy main plugin file
+Copy-Item -Path $PluginMain -Destination (Join-Path $DestDir "PKN-backend.php") -Force
+
+# Copy plugin folders
+foreach ($folder in @('templates', 'lang', 'includes', 'assets')) {
+    $src = Join-Path $RootDir $folder
+    if (Test-Path $src) {
+        Copy-Item -Path $src -Destination (Join-Path $DestDir $folder) -Recurse -Force
+    } else {
+        Write-Host "WARNING: Folder not found, skipping: $folder" -ForegroundColor Yellow
+    }
+}
+
+# Create zip — always named PKN.zip
+$ZipPath = Join-Path $BuildsDir "PKN.zip"
 Write-Host "Compressing..."
-Compress-Archive -Path $DestDir -DestinationPath $ZipPath -Force
+Compress-Archive -Path (Join-Path $DestDir '*') -DestinationPath $ZipPath -Force
  
 # Write latest.json manifest
 $Manifest = @"
@@ -120,7 +148,7 @@ $Manifest = @"
   "slug": "pkn-backend",
   "version": "$Version",
   "built_at": "$DateUtc",
-  "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/$ZipName",
+  "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/PKN.zip",
   "details_url": "https://github.com/JIFO0/PKN",
   "requires_wp": "6.0",
   "requires_php": "7.4",
