@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Admin page for importing communities from Excel
  */
@@ -10,6 +10,9 @@ if (!sc_is_superadmin()) {
 }
 
 settings_errors('pkn_messages');
+if (isset($_GET['history_cleared']) && $_GET['history_cleared'] === '1') {
+    echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Update history cleared and logged.', 'science-communities') . '</p></div>';
+}
 $update_status = function_exists('sc_get_update_status') ? sc_get_update_status() : array('current_version' => SC_PLUGIN_VERSION, 'remote_version' => '', 'has_update' => false);
 ?>
 
@@ -41,6 +44,13 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
             
             <table class="form-table">
                 <tr>
+                    <th><label for="importer_name"><?php _e('Your name', 'science-communities'); ?></label></th>
+                    <td>
+                        <input type="text" name="importer_name" id="importer_name" class="regular-text" required>
+                        <p class="description"><?php _e('This name will be saved in the update history for this import.', 'science-communities'); ?></p>
+                    </td>
+                </tr>
+                <tr>
                     <th><label for="excel_file"><?php _e('Excel File', 'science-communities'); ?></label></th>
                     <td>
                         <input type="file" name="excel_file" id="excel_file" accept=".csv,.xlsx,.xls" required>
@@ -71,68 +81,86 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td><code>name</code></td>
-                    <td><strong><?php _e('Yes', 'science-communities'); ?></strong></td>
-                    <td><?php _e('Community name', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>shortdescription</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Brief description', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>description</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Full description', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>faculty</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Faculty name', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>webpage</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Website URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>facebook</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Facebook URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>instagram</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Instagram URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>tiktok</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('TikTok URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>discord</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Discord URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>logo</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Logo image URL', 'science-communities'); ?></td>
-                </tr>
-                <tr>
-                    <td><code>tags</code></td>
-                    <td><?php _e('No', 'science-communities'); ?></td>
-                    <td><?php _e('Tags separated by | , ; or / inside one field (e.g., "Science|Technology;Research")', 'science-communities'); ?></td>
-                </tr>
+                <?php
+                $columns = array(
+                    array('community_id', __('Yes', 'science-communities'), __('Five-character community ID. Rows with community_id equal to 0 are not imported.', 'science-communities')),
+                    array('name', __('Yes', 'science-communities'), __('Community name.', 'science-communities')),
+                    array('shortdescription', __('No', 'science-communities'), __('Brief 1–2 sentence description.', 'science-communities')),
+                    array('description', __('No', 'science-communities'), __('Long formatted description.', 'science-communities')),
+                    array('faculty', __('No', 'science-communities'), __('Faculty name.', 'science-communities')),
+                    array('webpage', __('No', 'science-communities'), __('Website URL.', 'science-communities')),
+                    array('facebook', __('No', 'science-communities'), __('Facebook URL.', 'science-communities')),
+                    array('instagram', __('No', 'science-communities'), __('Instagram URL.', 'science-communities')),
+                    array('discord', __('No', 'science-communities'), __('Discord URL.', 'science-communities')),
+                    array('inne', __('No', 'science-communities'), __('Other links. Separate multiple links with commas.', 'science-communities')),
+                    array('mail', __('No', 'science-communities'), __('Application contact email address.', 'science-communities')),
+                    array('logo', __('No', 'science-communities'), __('Logo image URL.', 'science-communities')),
+                    array('tags', __('No', 'science-communities'), __('Tags. Separate multiple tags with commas.', 'science-communities')),
+                    array('status', __('No', 'science-communities'), __('Use -1 for archived/suspended, 0 for suspended, a value between 0 and 1 for limited activity, and 1 for active.', 'science-communities')),
+                );
+                foreach ($columns as $column):
+                ?>
+                    <tr>
+                        <td><code><?php echo esc_html($column[0]); ?></code></td>
+                        <td><?php echo $column[1] === __('Yes', 'science-communities') ? '<strong>' . esc_html($column[1]) . '</strong>' : esc_html($column[1]); ?></td>
+                        <td><?php echo esc_html($column[2]); ?></td>
+                    </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
         
         <p style="margin-top: 20px;">
             <strong><?php _e('Note:', 'science-communities'); ?></strong>
-            <?php _e('If a community with the same name already exists, it will be updated. Communities are matched by name.', 'science-communities'); ?>
+            <?php _e('If a community with the same community_id already exists, it will be updated. Legacy files without community_id are matched by name.', 'science-communities'); ?>
         </p>
+    </div>
+
+    <div class="card" style="max-width: 1000px; margin-top: 20px;">
+        <h2><?php _e('Update history', 'science-communities'); ?></h2>
+        <?php
+        global $wpdb;
+        $history_table = $wpdb->prefix . 'science_communities_update_history';
+        $history_entries = $wpdb->get_results("SELECT * FROM $history_table ORDER BY created_at DESC LIMIT 25", ARRAY_A);
+        ?>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th><?php _e('Date', 'science-communities'); ?></th>
+                    <th><?php _e('Name', 'science-communities'); ?></th>
+                    <th><?php _e('Action', 'science-communities'); ?></th>
+                    <th><?php _e('File', 'science-communities'); ?></th>
+                    <th><?php _e('Created', 'science-communities'); ?></th>
+                    <th><?php _e('Updated', 'science-communities'); ?></th>
+                    <th><?php _e('Deleted', 'science-communities'); ?></th>
+                    <th><?php _e('Skipped', 'science-communities'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($history_entries)): ?>
+                    <tr><td colspan="8"><?php _e('No update history yet.', 'science-communities'); ?></td></tr>
+                <?php else: ?>
+                    <?php foreach ($history_entries as $entry): ?>
+                        <tr>
+                            <td><?php echo esc_html($entry['created_at']); ?></td>
+                            <td><?php echo esc_html($entry['actor_name']); ?></td>
+                            <td><?php echo esc_html($entry['action'] === 'history_cleared' ? __('History cleared', 'science-communities') : __('Import', 'science-communities')); ?></td>
+                            <td><?php echo esc_html($entry['filename']); ?></td>
+                            <td><?php echo esc_html((int) $entry['communities_created']); ?></td>
+                            <td><?php echo esc_html((int) $entry['communities_updated']); ?></td>
+                            <td><?php echo esc_html((int) $entry['communities_deleted']); ?></td>
+                            <td><?php echo esc_html((int) $entry['communities_skipped']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </tbody>
+        </table>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top: 16px;">
+            <input type="hidden" name="action" value="sc_clear_update_history">
+            <?php wp_nonce_field('sc_clear_update_history', 'sc_clear_update_history_nonce'); ?>
+            <label for="history_actor_name"><strong><?php _e('Your name', 'science-communities'); ?></strong></label>
+            <input type="text" id="history_actor_name" name="history_actor_name" class="regular-text" required>
+            <button type="submit" class="button" onclick="return confirm('<?php echo esc_js(__('Clear update history? A new entry recording this action will be created.', 'science-communities')); ?>');"><?php _e('Clear update history', 'science-communities'); ?></button>
+        </form>
     </div>
 </div>
 <?php

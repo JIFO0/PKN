@@ -402,21 +402,28 @@ function sc_create_community($community_data) {
     
     $communities_table = $wpdb->prefix . 'science_communities';
     
-    // Generate a unique community ID
-    $community_id = sc_generate_community_id();
+    // Use an imported community ID when provided, otherwise generate a unique one.
+    $community_id = !empty($community_data['community_id']) && sanitize_text_field($community_data['community_id']) !== '0'
+        ? sanitize_text_field($community_data['community_id'])
+        : sc_generate_community_id();
     
     // Prepare data for insertion
     $data = array(
         'community_id' => $community_id,
         'name' => sanitize_text_field($community_data['name']),
         'shortdescription' => sanitize_textarea_field($community_data['shortdescription'] ?? ''),
-        'description' => sanitize_textarea_field($community_data['description'] ?? ''),
+        'description' => wp_kses_post($community_data['description'] ?? ''),
         'webpage' => esc_url_raw($community_data['webpage'] ?? ''),
         'facebook' => esc_url_raw($community_data['facebook'] ?? ''),
         'instagram' => esc_url_raw($community_data['instagram'] ?? ''),
         'tiktok' => esc_url_raw($community_data['tiktok'] ?? ''),
         'discord' => esc_url_raw($community_data['discord'] ?? ''),
+        'other_links' => function_exists('sc_sanitize_links_list') ? sc_sanitize_links_list($community_data['other_links'] ?? '') : '',
         'logo' => esc_url_raw($community_data['logo'] ?? ''),
+        'contact_email' => sanitize_email($community_data['contact_email'] ?? ''),
+        'faculty_id' => isset($community_data['faculty_id']) && $community_data['faculty_id'] !== null ? intval($community_data['faculty_id']) : null,
+        'status' => isset($community_data['status']) ? sanitize_text_field($community_data['status']) : 'active',
+        'is_archived' => isset($community_data['is_archived']) ? intval((bool) $community_data['is_archived']) : 0,
     );
     
     // Insert the community
@@ -452,7 +459,7 @@ function sc_update_community($community_data) {
     $data = array();
     $fields = array(
         'name', 'shortdescription', 'description', 'webpage', 
-        'facebook', 'instagram', 'tiktok', 'discord', 'logo'
+        'facebook', 'instagram', 'tiktok', 'discord', 'other_links', 'logo'
     );
     
     foreach ($fields as $field) {
@@ -460,7 +467,11 @@ function sc_update_community($community_data) {
             if ($field === 'webpage' || $field === 'facebook' || $field === 'instagram' || 
                 $field === 'tiktok' || $field === 'discord' || $field === 'logo') {
                 $data[$field] = esc_url_raw($community_data[$field]);
-            } elseif ($field === 'shortdescription' || $field === 'description') {
+            } elseif ($field === 'other_links') {
+                $data[$field] = function_exists('sc_sanitize_links_list') ? sc_sanitize_links_list($community_data[$field]) : sanitize_textarea_field($community_data[$field]);
+            } elseif ($field === 'description') {
+                $data[$field] = wp_kses_post($community_data[$field]);
+            } elseif ($field === 'shortdescription') {
                 $data[$field] = sanitize_textarea_field($community_data[$field]);
             } else {
                 $data[$field] = sanitize_text_field($community_data[$field]);
@@ -719,29 +730,37 @@ add_action('wp_ajax_sc_import_communities', function() {
     check_ajax_referer('sc_import_excel', 'sc_import_nonce');
     
     if (!sc_is_superadmin()) {
-        wp_send_json_error(['message' => 'Unauthorized']);
+        wp_send_json_error(['message' => __('Unauthorized', 'science-communities')]);
     }
 
     if (!isset($_FILES['excel_file'])) {
-        wp_send_json_error(['message' => 'No file uploaded.']);
+        wp_send_json_error(['message' => __('No file uploaded.', 'science-communities')]);
+    }
+
+    $importer_name = isset($_POST['importer_name']) ? sanitize_text_field(wp_unslash($_POST['importer_name'])) : '';
+    if ($importer_name === '') {
+        wp_send_json_error(['message' => __('Please enter your name before importing.', 'science-communities')]);
     }
 
     require_once(ABSPATH . 'wp-admin/includes/file.php');
     $movefile = wp_handle_upload($_FILES['excel_file'], ['test_form' => false, 'test_type' => false]);
 
     if (!$movefile || isset($movefile['error'])) {
-        wp_send_json_error(['message' => $movefile['error'] ?? 'Upload failed.']);
+        wp_send_json_error(['message' => $movefile['error'] ?? __('Upload failed.', 'science-communities')]);
     }
 
     // Give it time to finish large files
     set_time_limit(120);
 
-    $imported = sc_import_from_excel($movefile['file']);
+    $imported = sc_import_from_excel($movefile['file'], [
+        'actor_name' => $importer_name,
+        'filename' => basename($_FILES['excel_file']['name'] ?? $movefile['file']),
+    ]);
     @unlink($movefile['file']);
 
     if ($imported['success']) {
         wp_send_json_success([
-            'message' => sprintf('%d communities imported.', $imported['count'])
+            'message' => sprintf(__('Import completed. Created: %1$d, updated: %2$d, skipped: %3$d.', 'science-communities'), (int) $imported['created'], (int) $imported['updated'], (int) $imported['skipped'])
         ]);
     } else {
         wp_send_json_error(['message' => $imported['message']]);
@@ -779,7 +798,7 @@ add_action('admin_footer', function() {
 
     <div id="sc-import-overlay">
         <div class="sc-spinner"></div>
-        <p>Importing communities, please wait…</p>
+        <p><?php echo esc_html__('Importing communities, please wait…', 'science-communities'); ?></p>
     </div>
 
     <script>
@@ -798,11 +817,11 @@ add_action('admin_footer', function() {
             .then(r => r.json())
             .then(data => {
                 document.getElementById('sc-import-overlay').classList.remove('active');
-                alert(data.success ? '✅ ' + data.data.message : '❌ ' + (data.data?.message ?? 'Import failed.'));
+                alert(data.success ? '✅ ' + data.data.message : '❌ ' + (data.data?.message ?? '<?php echo esc_js(__('Import failed.', 'science-communities')); ?>'));
             })
             .catch(() => {
                 document.getElementById('sc-import-overlay').classList.remove('active');
-                alert('❌ Network error during import.');
+                alert('❌ <?php echo esc_js(__('Network error during import.', 'science-communities')); ?>');
             });
         });
     });

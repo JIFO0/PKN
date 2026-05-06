@@ -82,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 'instagram' => esc_url_raw($_POST['instagram']),
                 'tiktok' => esc_url_raw($_POST['tiktok']),
                 'discord' => esc_url_raw($_POST['discord']),
+                'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
                 'logo' => esc_url_raw($_POST['logo']),
                 'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
                 'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
@@ -168,8 +169,25 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
         </div>
 
         <div class="sc-form-group">
-            <label for="sc-description"><?php echo esc_html__('Description', 'science-communities'); ?></label>
-            <textarea id="sc-description" name="description"><?php echo esc_textarea($community['description']); ?></textarea>
+            <label for="sc_description_editor"><?php echo esc_html__('Description', 'science-communities'); ?></label>
+            <?php
+            wp_editor(
+                $community['description'],
+                'sc_description_editor',
+                array(
+                    'textarea_name' => 'description',
+                    'textarea_rows' => 12,
+                    'media_buttons' => false,
+                    'teeny' => false,
+                    'quicktags' => true,
+                    'tinymce' => array(
+                        'toolbar1' => 'formatselect,bold,italic,underline,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,unlink,undo,redo',
+                        'toolbar2' => 'pastetext,removeformat,charmap,outdent,indent',
+                    ),
+                )
+            );
+            ?>
+            <p class="description"><?php echo esc_html__('Use the editor controls to format the long description.', 'science-communities'); ?></p>
         </div>
 
         <div class="sc-form-group">
@@ -200,6 +218,12 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
         <div class="sc-form-group">
             <label for="sc-discord"><?php echo esc_html__('Discord URL', 'science-communities'); ?></label>
             <input type="url" id="sc-discord" name="discord" value="<?php echo esc_url($community['discord']); ?>">
+        </div>
+
+        <div class="sc-form-group">
+            <label for="sc-other-links"><?php echo esc_html__('Other links', 'science-communities'); ?></label>
+            <textarea id="sc-other-links" name="other_links" rows="3"><?php echo esc_textarea($community['other_links'] ?? ''); ?></textarea>
+            <p class="description"><?php echo esc_html__('Enter one link per line or separate links with commas.', 'science-communities'); ?></p>
         </div>
 
         <div class="sc-form-group">

@@ -66,6 +66,7 @@ $event_images = function_exists('sc_get_community_images') ? sc_get_community_im
 $team_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'team') : array();
 $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'gallery') : array();
 $all_gallery_images = array_values(array_unique(array_merge($gallery_images, $event_images, $team_images)));
+$other_links = function_exists('sc_get_links_list') ? sc_get_links_list($community['other_links'] ?? '') : array();
 ?>
 
 <div class="sc-community-detail sc-community-detail-modern">
@@ -124,6 +125,17 @@ $all_gallery_images = array_values(array_unique(array_merge($gallery_images, $ev
         <?php if (!empty($social_preview_settings['enabled']) && $social_preview_settings['enabled'] === '1' && !empty($social_preview_settings['facebook']) && !empty($community['facebook'])): ?>
             <div class="sc-detail-social-previews"><?php echo sc_render_facebook_embed($community['facebook'], $social_preview_settings); ?></div>
         <?php endif; ?>
+        <?php if (!empty($other_links)): ?>
+            <div class="sc-detail-other-links">
+                <h3><?php echo esc_html__('Other links', 'science-communities'); ?></h3>
+                <ul>
+                    <?php foreach ($other_links as $index => $other_link): ?>
+                        <li><a href="<?php echo esc_url($other_link); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html(sprintf(__('Link %d', 'science-communities'), $index + 1)); ?></a></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
     </div>
 
     <div class="sc-detail-actions">
