@@ -1,11 +1,10 @@
-# Ignore entire directories
 .git/
 .vs/
 ..test/
 .ignore/
 .vscode/
-
-# Or using wildcards to be extra safe
+.builds/old/
+#wildcard ahh shit
 .git/*
 .vs/*
 ..test/*
