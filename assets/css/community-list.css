@@ -434,6 +434,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: var(--ug-transition);
+	height: 50px;
 }
 
 .sc-list-card:hover .sc-card-link {
@@ -656,7 +657,7 @@
         transition: none;
     }
 }
-/* ===== BF2: make list view match results tone ===== */
+
 .sc-list-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -722,8 +723,9 @@
 }
 
 .sc-card-link:hover {
-    background: var(--ug-blue-dark);
-    border-color: var(--ug-blue-dark);
+    background: var(--ug-white);
+    border-color: var(--ug-white);
+	color: var(--ug-blue)
 }
 
 @media (max-width: 768px) {
@@ -744,19 +746,20 @@
     align-items: center;
     justify-content: center;
     padding: 10px 16px;
-    border: 2px solid var(--ug-blue);
+    border: 3px solid var(--ug-blue);
     background: var(--ug-blue);
     color: var(--ug-white);
     font-weight: 800;
     text-transform: uppercase;
     text-decoration: none;
     cursor: pointer;
-    transition: var(--ug-transition);
+	height: 50px;
 }
 
 .sc-card-footer .sc-apply-button:hover {
-    background: var(--ug-blue-dark);
-    border-color: var(--ug-blue-dark);
-    transform: translateY(-2px);
+    background: var(--ug-white);
+    border-color: var(--ug-white);
     box-shadow: var(--ug-shadow-md);
+	color: var(--ug-blue);
+	
 }
