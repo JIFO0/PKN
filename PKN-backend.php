@@ -692,6 +692,7 @@ function sc_enqueue_assets() {
         has_shortcode($post->post_content, 'science_communities_add') ||
         has_shortcode($post->post_content, 'science_communities_search') ||
         has_shortcode($post->post_content, 'science_communities_results') ||
+        has_shortcode($post->post_content, 'science_community_detail') ||
         has_shortcode($post->post_content, 'science_communities_list') ||
         has_shortcode($post->post_content, 'science_communities_forum') ||
         strpos($_SERVER['REQUEST_URI'], '/sc-admin/') !== false
@@ -1106,30 +1107,32 @@ add_action('admin_post_sc_submit_contact_request', 'sc_handle_submit_contact_req
 
 function sc_handle_submit_join_application() {
     if (!isset($_POST['sc_join_application_nonce']) || !wp_verify_nonce($_POST['sc_join_application_nonce'], 'sc_join_application')) {
-        wp_die(__('Security check failed', 'science-communities'));
+        wp_die(esc_html(sc_t('security_check_failed')));
     }
     $community_id = sanitize_text_field($_POST['community_id'] ?? '');
     $name = sanitize_text_field($_POST['applicant_name'] ?? '');
+    $surname = sanitize_text_field($_POST['applicant_surname'] ?? '');
+    $full_name = trim($name . ' ' . $surname);
     $email = sanitize_email($_POST['applicant_email'] ?? '');
     $info = sanitize_textarea_field(wp_unslash($_POST['applicant_info'] ?? ''));
     $contact = sanitize_text_field($_POST['applicant_contact'] ?? '');
-    if (empty($community_id) || empty($name) || empty($email) || empty($info)) {
-        wp_die('Missing required fields');
+    if (empty($community_id) || empty($full_name) || empty($email) || empty($info)) {
+        wp_die(esc_html(sc_t('missing_required_fields')));
     }
     $rate_key = 'sc_join_apps_' . get_current_user_id();
     $sent = intval(get_transient($rate_key));
     if ($sent >= 10) {
-        wp_die('Rate limit exceeded (10/24h).');
+        wp_die(esc_html(sc_t('rate_limit_exceeded')));
     }
     $community = sc_get_community_by_id($community_id);
-    if (!$community || empty($community['contact_email']) || empty($community['open_for_applications'])) {
-        wp_die('This community is not open for applications.');
+    if (!$community || empty($community['contact_email']) || intval($community['open_for_applications'] ?? 0) !== 1) {
+        wp_die(esc_html(sc_t('community_not_open_for_applications')));
     }
     global $wpdb;
     $table = $wpdb->prefix . 'science_community_applications';
     $wpdb->insert($table, array(
         'community_id' => $community_id,
-        'applicant_name' => $name,
+        'applicant_name' => $full_name,
         'applicant_email' => $email,
         'applicant_info' => $info,
         'applicant_contact' => $contact,
@@ -1137,7 +1140,7 @@ function sc_handle_submit_join_application() {
         'is_read' => 0,
     ));
     set_transient($rate_key, $sent + 1, DAY_IN_SECONDS);
-    wp_mail($community['contact_email'], 'New SC join application: ' . $community['name'], "Name: $name\nEmail: $email\nInfo: $info\nContact: $contact");
+    wp_mail($community['contact_email'], sprintf(sc_t('new_join_application_subject'), $community['name']), "Name: $full_name\nEmail: $email\nInfo: $info\nContact: $contact");
     wp_safe_redirect(add_query_arg(array('id' => $community_id, 'applied' => '1'), sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'))));
     exit;
 }

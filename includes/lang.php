@@ -86,15 +86,14 @@ function sc_render_lang_toggle() {
 }
 
 function sc_render_lang_header_toggle_shortcode() {
+    $current_lang = sc_get_lang();
+    $switch_to = $current_lang === 'pl' ? 'en' : 'pl';
+    $label = strtoupper($switch_to);
+
     $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '/';
     $base_url = home_url($request_uri);
-    $pl_url = add_query_arg('lang', 'pl', remove_query_arg('lang', $base_url));
-    $en_url = add_query_arg('lang', 'en', remove_query_arg('lang', $base_url));
+    $target_url = add_query_arg('lang', $switch_to, remove_query_arg('lang', $base_url));
 
-    return '<span class="sc-lang-header-toggle">'
-        . '<a href="' . esc_url($en_url) . '">EN</a>'
-        . '<span class="sc-lang-header-separator"> </span>'
-        . '<a href="' . esc_url($pl_url) . '">PL</a>'
-        . '</span>';
+    return '<span class="sc-lang-header-toggle"><a href="' . esc_url($target_url) . '">' . esc_html($label) . '</a></span>';
 }
 add_shortcode('sc_lang_header_toggle', 'sc_render_lang_header_toggle_shortcode');

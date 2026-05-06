@@ -518,3 +518,126 @@
 .sc-apply-close { position:absolute; top:8px; right:10px; background:none; border:none; font-size:28px; cursor:pointer; }
 .sc-apply-modal-content form { display:flex; flex-direction:column; gap:10px; }
 .sc-apply-modal-content input, .sc-apply-modal-content textarea { width:100%; border:1px solid var(--ug-gray-300); padding:10px; }
+
+/* Modern contact table and application modal */
+.sc-detail-social-table {
+    width: min(520px, 100%);
+    margin: 0 auto;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--ug-white);
+    border: 2px solid var(--ug-gray-300);
+    box-shadow: var(--ug-shadow-sm);
+}
+
+.sc-detail-social-table caption {
+    caption-side: top;
+    padding: 12px 16px;
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.sc-detail-social-table th,
+.sc-detail-social-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ug-gray-300);
+    vertical-align: middle;
+}
+
+.sc-detail-social-table tr:last-child th,
+.sc-detail-social-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.sc-detail-social-table th {
+    width: 60%;
+    text-align: left;
+    color: var(--ug-gray-800);
+    background: var(--ug-gray-100);
+    font-weight: 800;
+}
+
+.sc-detail-social-table td {
+    text-align: center;
+}
+
+.sc-detail-social-table img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: inline-block;
+    transition: var(--ug-transition);
+}
+
+.sc-detail-social-table a:hover img {
+    transform: scale(1.08);
+}
+
+.sc-applications-closed {
+    min-width: 160px;
+    padding: 12px 20px;
+    border: 2px solid var(--ug-gray-300);
+    background: var(--ug-gray-100);
+    color: var(--ug-gray-700);
+    font-weight: 800;
+    text-align: center;
+}
+
+.sc-apply-modal-content {
+    border: 2px solid var(--ug-blue);
+    border-left: 6px solid var(--ug-cyan);
+    box-shadow: var(--ug-shadow-lg);
+}
+
+.sc-apply-modal-content h3 {
+    margin: 0 36px 18px 0;
+    color: var(--ug-gray-900);
+    font-size: 1.35rem;
+}
+
+.sc-apply-modal-content label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 800;
+    color: var(--ug-gray-800);
+}
+
+.sc-apply-field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.sc-apply-modal-content input,
+.sc-apply-modal-content textarea {
+    border: 2px solid var(--ug-gray-300);
+    min-height: 44px;
+    font: inherit;
+}
+
+.sc-apply-modal-content textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.sc-apply-modal-content input:focus,
+.sc-apply-modal-content textarea:focus {
+    outline: none;
+    border-color: var(--ug-cyan);
+    box-shadow: 0 0 0 3px rgba(72, 189, 203, 0.12);
+}
+
+.sc-apply-modal-content .sc-search-button {
+    width: 100%;
+    border: 2px solid var(--ug-blue);
+}
+
+@media (max-width: 560px) {
+    .sc-apply-field-row {
+        grid-template-columns: 1fr;
+    }
+}

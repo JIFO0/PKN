@@ -64,10 +64,10 @@ if (!empty($selected_faculties)) {
 if (!empty($selected_tags)) {
     $tag_count = count($selected_tags);
     $tag_placeholders = implode(',', array_fill(0, $tag_count, '%d'));
-    
+
     $where_clauses[] = $wpdb->prepare(
         "c.community_id IN (
-            SELECT r.community_id 
+            SELECT r.community_id
             FROM $relationships_table AS r
             WHERE r.tag_id IN ($tag_placeholders)
             GROUP BY r.community_id
@@ -114,6 +114,7 @@ error_log('==== END SEARCH DEBUG ====');
 
 // Get detail page URL
 $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));
+$default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlogomain.png';
 ?>
 
 <div class="sc-list-container">
@@ -134,11 +135,11 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                     </svg>
                     <?php echo esc_html(sc_t('search_label')); ?>
                 </label>
-                <input 
-                    type="text" 
-                    name="filter_search" 
+                <input
+                    type="text"
+                    name="filter_search"
                     class="sc-filter-search"
-                    value="<?php echo esc_attr($search_term); ?>" 
+                    value="<?php echo esc_attr($search_term); ?>"
                     placeholder="<?php echo esc_attr(sc_t('search_communities_placeholder')); ?>"
                 >
             </div>
@@ -201,9 +202,9 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                 <div class="sc-filter-tags">
                     <?php foreach ($all_tags as $tag): ?>
                     <label class="sc-filter-tag-item <?php echo in_array($tag->id, $selected_tags) ? 'selected' : ''; ?>">
-                        <input 
-                            type="checkbox" 
-                            name="filter_tags[]" 
+                        <input
+                            type="checkbox"
+                            name="filter_tags[]"
                             value="<?php echo esc_attr($tag->id); ?>"
                             <?php checked(in_array($tag->id, $selected_tags)); ?>
                         >
@@ -226,9 +227,9 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                 <div class="sc-filter-faculties">
                     <?php foreach ($all_faculties as $faculty): ?>
                     <label class="sc-filter-faculty-item <?php echo in_array($faculty->id, $selected_faculties) ? 'selected' : ''; ?>">
-                        <input 
-                            type="checkbox" 
-                            name="filter_faculties[]" 
+                        <input
+                            type="checkbox"
+                            name="filter_faculties[]"
                             value="<?php echo esc_attr($faculty->id); ?>"
                             <?php checked(in_array($faculty->id, $selected_faculties)); ?>
                         >
@@ -251,34 +252,34 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
 
         <div class="sc-filter-summary">
             <span class="sc-result-count">
-                <?php 
+                <?php
                 printf(
                     _n(
-                        sc_t('community_found'), 
-                        sc_t('communities_found'), 
-                        count($communities), 
+                        sc_t('community_found'),
+                        sc_t('communities_found'),
+                        count($communities),
                         'science-communities'
-                    ), 
+                    ),
                     '<strong>' . number_format_i18n(count($communities)) . '</strong>'
-                ); 
+                );
                 ?>
             </span>
-            
+
             <?php if (!empty($selected_tags) || !empty($selected_faculties) || !empty($search_term) || $sort_order !== 'name_asc' || $status_filter !== 'all'): ?>
             <span class="sc-active-filters-count">
-                <?php 
+                <?php
                 $filter_count = count($selected_tags) + count($selected_faculties) + (!empty($search_term) ? 1 : 0);
                 if ($sort_order !== 'name_asc') $filter_count++;
                 if ($status_filter !== 'all') $filter_count++;
                 printf(
                     _n(
-                        sc_t('active_filter'), 
-                        sc_t('active_filters_count'), 
-                        $filter_count, 
+                        sc_t('active_filter'),
+                        sc_t('active_filters_count'),
+                        $filter_count,
                         'science-communities'
-                    ), 
+                    ),
                     $filter_count
-                ); 
+                );
                 ?>
             </span>
             <?php endif; ?>
@@ -297,24 +298,23 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
     </div>
     <?php else: ?>
     <div class="sc-list-grid">
-        <?php foreach ($communities as $community): 
+        <?php foreach ($communities as $community):
             $tags = sc_get_community_tags($community->community_id);
+            $logo_url = !empty($community->logo) ? $community->logo : $default_logo_url;
         ?>
         <div class="sc-list-card">
-            <?php if (!empty($community->logo)): ?>
             <div class="sc-card-logo">
-                <img src="<?php echo esc_url($community->logo); ?>" 
+                <img src="<?php echo esc_url($logo_url); ?>"
                      alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community->name)); ?>">
             </div>
-            <?php endif; ?>
-            
+
             <div class="sc-card-content">
                 <h3 class="sc-card-title">
                     <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>">
                         <?php echo esc_html($community->name); ?>
                     </a>
                 </h3>
-                
+
                 <?php
                 $fallback_short = sc_get_lang() === 'en'
                     ? 'Science Community At the University of Gdańsk'
@@ -326,7 +326,7 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                     <?php echo esc_html(wp_trim_words($shortdescription, 20)); ?>
                 </p>
                 <?php endif; ?>
-                
+
                 <?php if (!empty($tags)): ?>
                 <div class="sc-card-tags">
                     <?php foreach (array_slice($tags, 0, 3) as $tag): ?>
@@ -338,12 +338,12 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                 </div>
                 <?php endif; ?>
             </div>
-            
+
             <div class="sc-card-footer">
                 <?php if (!empty($community->contact_email) && !empty($community->open_for_applications)): ?>
-                <button type="button" class="sc-apply-button" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html__('Apply to join', 'science-communities'); ?></button>
+                <button type="button" class="sc-apply-button" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html(sc_t('apply_to_join')); ?></button>
                 <?php endif; ?>
-                <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>" 
+                <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>"
                    class="sc-card-link">
                     <?php echo esc_html(sc_t('view_details')); ?>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -351,29 +351,45 @@ $detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site
                         <polyline points="12 5 19 12 12 19"></polyline>
                     </svg>
                 </a>
-                <?php if (!empty($community->contact_email) && !empty($community->open_for_applications)): ?>
-                <button type="button" class="sc-apply-button sc-join-secondary" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html__('Join', 'science-communities'); ?></button>
-                <?php endif; ?>
+
             </div>
         </div>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
 </div>
-<form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:none;">
-<input type="hidden" name="action" value="sc_submit_join_application"><?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
-<input type="hidden" name="community_id" id="sc-apply-community-id"><input type="hidden" name="applicant_name" id="sc-apply-name"><input type="hidden" name="applicant_email" id="sc-apply-email"><input type="hidden" name="applicant_info" id="sc-apply-info"><input type="hidden" name="applicant_contact" id="sc-apply-contact"></form>
+<div class="sc-apply-modal" id="sc-apply-modal" aria-hidden="true" style="display:none;">
+    <div class="sc-apply-modal-content" role="dialog" aria-modal="true" aria-labelledby="sc-apply-modal-title">
+        <button type="button" class="sc-apply-close" id="sc-apply-close" aria-label="<?php echo esc_attr(sc_t('close_modal')); ?>">&times;</button>
+        <h3 id="sc-apply-modal-title"><?php echo esc_html(sc_t('apply_to_this_community')); ?></h3>
+        <form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="sc_submit_join_application">
+            <?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
+            <input type="hidden" name="community_id" id="sc-apply-community-id">
+            <div class="sc-apply-field-row">
+                <label><span><?php echo esc_html(sc_t('name')); ?></span><input type="text" name="applicant_name" required></label>
+                <label><span><?php echo esc_html(sc_t('surname')); ?></span><input type="text" name="applicant_surname"></label>
+            </div>
+            <label><span><?php echo esc_html(sc_t('email')); ?></span><input type="email" name="applicant_email" required></label>
+            <label><span><?php echo esc_html(sc_t('additional_contact_info')); ?></span><textarea name="applicant_contact"></textarea></label>
+            <label><span><?php echo esc_html(sc_t('tell_us_about_yourself')); ?></span><textarea name="applicant_info" required></textarea></label>
+            <button type="submit" class="sc-search-button"><?php echo esc_html(sc_t('send_application')); ?></button>
+        </form>
+    </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('sc-apply-modal');
+    const closeBtn = document.getElementById('sc-apply-close');
+    const communityInput = document.getElementById('sc-apply-community-id');
     document.querySelectorAll('.sc-apply-button').forEach(btn=>btn.addEventListener('click',()=>{
-        const name=prompt('Your name:'); if(!name)return;
-        const info=prompt('Tell us about yourself:'); if(!info)return;
-        const email=prompt('Contact email:'); if(!email)return;
-        const contact=prompt('Optional contact (Discord/Facebook/Instagram):','')||'';
-        document.getElementById('sc-apply-community-id').value=btn.dataset.communityId;
-        document.getElementById('sc-apply-name').value=name;document.getElementById('sc-apply-email').value=email;document.getElementById('sc-apply-info').value=info;document.getElementById('sc-apply-contact').value=contact;document.getElementById('sc-apply-form').submit();
+        if (communityInput) communityInput.value=btn.dataset.communityId || '';
+        if (modal) { modal.style.display='flex'; modal.setAttribute('aria-hidden','false'); }
     }));
+    function closeModal(){ if (modal) { modal.style.display='none'; modal.setAttribute('aria-hidden','true'); } }
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', event=>{ if (event.target === modal) closeModal(); });
     // Handle filter checkbox styling
     const checkboxes = document.querySelectorAll('.sc-filter-tag-item input, .sc-filter-faculty-item input');
     checkboxes.forEach(function(checkbox) {
@@ -381,7 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.closest('label').classList.toggle('selected', this.checked);
         });
     });
-    
+
     // Handle clear filters
     document.getElementById('sc-filter-clear').addEventListener('click', function() {
         document.querySelectorAll('.sc-filter-form input[type="checkbox"]').forEach(function(cb) {
@@ -391,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.sc-filter-search').value = '';
         document.getElementById('sc-filter-form').submit();
     });
-    
+
     // Auto-submit on filter change (optional - remove if you prefer manual apply)
     document.querySelectorAll('.sc-filter-form input[type="checkbox"]').forEach(function(checkbox) {
         checkbox.addEventListener('change', function() {

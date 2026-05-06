@@ -370,3 +370,24 @@
         font-size: 1rem;
     }
 }
+.sc-result-actions {
+    gap: 12px;
+}
+
+.sc-result-actions .sc-apply-button {
+    padding: 12px 18px;
+    border: 2px solid var(--ug-blue);
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--ug-transition);
+}
+
+.sc-result-actions .sc-apply-button:hover {
+    background: var(--ug-blue-dark);
+    border-color: var(--ug-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--ug-shadow-md);
+}

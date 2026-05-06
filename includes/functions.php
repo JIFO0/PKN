@@ -23,15 +23,19 @@ define('SC_FUNCTIONS_FILE_LOADED', true);
  * @param string $search_term The search term to look for in names and short descriptions
  * @param array $tags Array of tag IDs or names to filter by
  * @param boolean $fuzzy Whether to use fuzzy matching (default: true)
+ * @param array $faculties Array of faculty IDs to filter by
+ * @param boolean $open_for_applications Whether to show only communities open for applications
  * @return array Array of community objects
  */
-function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true) {
+function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true, $faculties = array(), $open_for_applications = false) {
     global $wpdb;
     
     error_log('==== SEARCH COMMUNITIES DEBUG ====');
     error_log('Search term: "' . $search_term . '"');
     error_log('Tags: ' . print_r($tags, true));
     error_log('Fuzzy: ' . ($fuzzy ? 'YES' : 'NO'));
+    error_log('Faculties: ' . print_r($faculties, true));
+    error_log('Open applications only: ' . ($open_for_applications ? 'YES' : 'NO'));
 
     $communities_table = $wpdb->prefix . 'science_communities';
     $tags_table = $wpdb->prefix . 'science_tags';
@@ -138,6 +142,21 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
         }
     }
     
+
+    // Add faculty filtering if faculties are provided.
+    $faculties = array_filter(array_map('intval', (array) $faculties));
+    if (!empty($faculties)) {
+        $faculty_placeholders = implode(',', array_fill(0, count($faculties), '%d'));
+        $where[] = $wpdb->prepare(
+            "c.faculty_id IN ($faculty_placeholders)",
+            $faculties
+        );
+    }
+
+    // Add open-for-applications filtering when requested.
+    if (!empty($open_for_applications)) {
+        $where[] = "c.open_for_applications = 1";
+    }
     // Construct the final query
     $query = $select . $join;
     
@@ -162,6 +181,8 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
             'name' => $result->name,
             'shortdescription' => $result->shortdescription,
             'logo' => $result->logo,
+            'contact_email' => $result->contact_email,
+            'open_for_applications' => isset($result->open_for_applications) ? intval($result->open_for_applications) : 0,
             'tags' => sc_get_community_tags($result->community_id)
         );
         
