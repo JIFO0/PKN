@@ -451,16 +451,24 @@ select {
   color: #fff;
   text-decoration: none;
   font-family: "DM Sans", sans-serif;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 200;
   letter-spacing: 0.04em;
-  transition: color var(--ug-transition-fast);
+  transition: color var(--ug-transition-fast), text-decoration-color var(--ug-transition-fast);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+
+.sc-lang-header-toggle a:hover {
+  color: #fff;
+  text-decoration-color: #fff;
 }
 .sc-lang-header-toggle a:hover,
 .sc-lang-header-toggle a:focus {
-  color: var(--ug-cyan);
+  color: var(--ug-white);
 }
 
-/* New flatter button system for cyan/secondary actions */
 .sc-admin-cta,
 .sc-admin-quick-link,
 .sc-join-secondary {

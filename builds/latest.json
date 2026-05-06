@@ -1,8 +1,8 @@
 ﻿{
   "name": "PKN Backend",
   "slug": "pkn-backend",
-  "version": "Alpha 0.948",
-  "built_at": "2026-05-06T17:15:23Z",
+  "version": "Alpha 0.951",
+  "built_at": "2026-05-06T19:07:22Z",
   "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/PKN.zip",
   "details_url": "https://github.com/JIFO0/PKN",
   "requires_wp": "6.0",
