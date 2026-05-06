@@ -67,6 +67,9 @@ $team_images = function_exists('sc_get_community_images') ? sc_get_community_ima
 $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'gallery') : array();
 $all_gallery_images = array_values(array_unique(array_merge($gallery_images, $event_images, $team_images)));
 $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($community['other_links'] ?? '') : array();
+$default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlogomain.png';
+$logo_url = !empty($community['logo']) ? $community['logo'] : $default_logo_url;
+$is_open_for_applications = !empty($community['open_for_applications']);
 ?>
 
 <div class="sc-community-detail sc-community-detail-modern">
@@ -79,18 +82,7 @@ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($communi
     </div>
 
     <div class="sc-detail-hero">
-        <?php if (!empty($community['logo'])): ?>
-            <div class="sc-detail-logo"><img src="<?php echo esc_url($community['logo']); ?>" alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community['name'])); ?>"></div>
-        <?php endif; ?>
-
-        <div class="sc-detail-social-icons sc-detail-social-icons-small">
-            <?php foreach ($social_icons as $platform => $icon):
-                $link = sc_build_social_url($community, $platform);
-                if (empty($link)) { continue; }
-            ?>
-                <a href="<?php echo esc_url($link); ?>" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr($platform); ?>"></a>
-            <?php endforeach; ?>
-        </div>
+        <div class="sc-detail-logo"><img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community['name'])); ?>"></div>
 
         <h1 class="sc-detail-title"><?php echo esc_html($community['name']); ?></h1>
     </div>
@@ -105,10 +97,10 @@ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($communi
 
     <?php if (!empty($all_gallery_images)): ?>
         <div class="sc-detail-gallery sc-detail-gallery-featured">
-            <h2><?php echo esc_html__('Gallery', 'science-communities'); ?></h2>
+            <h2><?php echo esc_html(sc_t('gallery')); ?></h2>
             <div class="sc-detail-gallery-grid sc-detail-gallery-grid-large">
                 <?php foreach ($all_gallery_images as $image): ?>
-                    <a href="<?php echo esc_url($image); ?>" class="sc-gallery-item" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr__('Community gallery image', 'science-communities'); ?>"></a>
+                    <a href="<?php echo esc_url($image); ?>" class="sc-gallery-item" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr(sc_t('community_gallery_image')); ?>"></a>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -116,21 +108,31 @@ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($communi
 
     <div class="sc-detail-social-block">
         <h2 class="sc-detail-section-title"><?php echo esc_html(sc_t('connect')); ?></h2>
-        <div class="sc-detail-social-icons sc-detail-social-icons-large">
-            <?php foreach ($social_icons as $platform => $icon): $link = sc_build_social_url($community, $platform); if (empty($link)) { continue; } ?>
-                <a href="<?php echo esc_url($link); ?>" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr($platform); ?>"></a>
+        <table class="sc-detail-social-table">
+            <caption><?php echo esc_html(sc_t('social_media_links')); ?></caption>
+            <tbody>
+            <?php foreach ($social_icons as $platform => $icon):
+                $link = sc_build_social_url($community, $platform);
+                if (empty($link)) { continue; }
+                $label_key = $platform === 'contact_email' ? 'email' : $platform;
+            ?>
+                <tr>
+                    <th scope="row"><?php echo esc_html(sc_t($label_key)); ?></th>
+                    <td><a href="<?php echo esc_url($link); ?>" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr(sc_t($label_key)); ?>"></a></td>
+                </tr>
             <?php endforeach; ?>
-        </div>
+            </tbody>
+        </table>
 
         <?php if (!empty($social_preview_settings['enabled']) && $social_preview_settings['enabled'] === '1' && !empty($social_preview_settings['facebook']) && !empty($community['facebook'])): ?>
             <div class="sc-detail-social-previews"><?php echo sc_render_facebook_embed($community['facebook'], $social_preview_settings); ?></div>
         <?php endif; ?>
         <?php if (!empty($other_links)): ?>
             <div class="sc-detail-other-links">
-                <h3><?php echo esc_html__('Other links', 'science-communities'); ?></h3>
+                <h3><?php echo esc_html(sc_t('other_links')); ?></h3>
                 <ul>
                     <?php foreach ($other_links as $index => $other_link): ?>
-                        <li><a href="<?php echo esc_url($other_link); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html(sprintf(__('Link %d', 'science-communities'), $index + 1)); ?></a></li>
+                        <li><a href="<?php echo esc_url($other_link); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html(sprintf(sc_t('link_number'), $index + 1)); ?></a></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -139,8 +141,12 @@ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($communi
     </div>
 
     <div class="sc-detail-actions">
-        <button type="button" class="sc-follow-button"><?php echo esc_html__('Follow', 'science-communities'); ?></button>
-        <button type="button" class="sc-apply-button"><?php echo esc_html__('Apply', 'science-communities'); ?></button>
+        <button type="button" class="sc-follow-button"><?php echo esc_html(sc_t('follow')); ?></button>
+        <?php if ($is_open_for_applications): ?>
+        <button type="button" class="sc-apply-button"><?php echo esc_html(sc_t('apply')); ?></button>
+        <?php else: ?>
+        <span class="sc-applications-closed"><?php echo esc_html(sc_t('applications_closed')); ?></span>
+        <?php endif; ?>
     </div>
 
     <div class="sc-detail-id"><span class="sc-detail-id-value"><?php echo esc_html(sc_t('community_id')); ?> <?php echo esc_html($community_id); ?></span></div>
@@ -149,17 +155,17 @@ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($communi
 <div class="sc-apply-modal" id="sc-apply-modal" style="display:none;">
     <div class="sc-apply-modal-content">
         <button type="button" class="sc-apply-close" id="sc-apply-close">&times;</button>
-        <h3><?php echo esc_html__('Apply to this community', 'science-communities'); ?></h3>
+        <h3><?php echo esc_html(sc_t('apply_to_this_community')); ?></h3>
         <form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <input type="hidden" name="action" value="sc_submit_join_application">
             <?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
             <input type="hidden" name="community_id" value="<?php echo esc_attr($community_id); ?>">
-            <input type="text" name="applicant_name" placeholder="<?php echo esc_attr__('Name', 'science-communities'); ?>" required>
-            <input type="text" name="applicant_surname" placeholder="<?php echo esc_attr__('Surname', 'science-communities'); ?>" required>
-            <input type="email" name="applicant_email" placeholder="<?php echo esc_attr__('Email', 'science-communities'); ?>" required>
-            <textarea name="applicant_contact" placeholder="<?php echo esc_attr__('Additional contact info (optional)', 'science-communities'); ?>"></textarea>
-            <textarea name="applicant_info" placeholder="<?php echo esc_attr__('Tell us about yourself', 'science-communities'); ?>" required></textarea>
-            <button type="submit" class="sc-search-button"><?php echo esc_html__('Send application', 'science-communities'); ?></button>
+            <input type="text" name="applicant_name" placeholder="<?php echo esc_attr(sc_t('name')); ?>" required>
+            <input type="text" name="applicant_surname" placeholder="<?php echo esc_attr(sc_t('surname')); ?>" required>
+            <input type="email" name="applicant_email" placeholder="<?php echo esc_attr(sc_t('email')); ?>" required>
+            <textarea name="applicant_contact" placeholder="<?php echo esc_attr(sc_t('additional_contact_info')); ?>"></textarea>
+            <textarea name="applicant_info" placeholder="<?php echo esc_attr(sc_t('tell_us_about_yourself')); ?>" required></textarea>
+            <button type="submit" class="sc-search-button"><?php echo esc_html(sc_t('send_application')); ?></button>
         </form>
     </div>
 </div>
@@ -173,22 +179,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (followBtn) {
         followBtn.addEventListener('click', function () {
-            alert('Mailing system is being built.');
+            alert(<?php echo wp_json_encode(sc_t('mailing_system_in_progress')); ?>);
         });
     }
 
     if (applyBtn && modal) {
-        applyBtn.addEventListener('click', function () { modal.style.display = 'flex'; });
+        applyBtn.addEventListener('click', function () { modal.style.display = 'flex'; modal.setAttribute('aria-hidden', 'false'); });
     }
 
     if (closeBtn && modal) {
-        closeBtn.addEventListener('click', function () { modal.style.display = 'none'; });
+        closeBtn.addEventListener('click', function () { modal.style.display = 'none'; modal.setAttribute('aria-hidden', 'true'); });
     }
 
     if (modal) {
         modal.addEventListener('click', function (event) {
             if (event.target === modal) {
-                modal.style.display = 'none';
+                modal.style.display = 'none'; modal.setAttribute('aria-hidden', 'true');
             }
         });
     }

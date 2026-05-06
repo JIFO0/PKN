@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Template for the science communities search form
  */
@@ -18,6 +18,8 @@ $all_faculties = $wpdb->get_results("SELECT id, faculty_name FROM $faculties_tab
 $search_query = isset($_GET['sc_search']) ? sanitize_text_field($_GET['sc_search']) : '';
 $selected_tags = isset($_GET['sc_tags']) ? array_map('intval', (array)$_GET['sc_tags']) : array();
 $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)$_GET['sc_faculties']) : array();
+$open_for_applications = !empty($_GET['sc_open_applications']);
+$has_active_filters = !empty($selected_tags) || !empty($selected_faculties) || !empty($search_query) || $open_for_applications;
 ?>
 
 <div class="sc-search-wrapper" style="background-image:linear-gradient(rgba(255,255,255,.85), rgba(255,255,255,.9)),url('https://old.ug.edu.pl/sites/default/files/styles/adaptive/public/_nodes/budynek/6056/images/p1050110.jpg?itok=CBfWlYvp'); background-size:cover; background-attachment:fixed;">
@@ -60,7 +62,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
 
                 <!-- Advanced Filters -->
                 <div class="sc-filters-toggle-wrapper">
-                    <button type="button" class="sc-filters-toggle" id="sc-filters-toggle">
+                    <button type="button" class="sc-filters-toggle <?php echo $has_active_filters ? 'active' : ''; ?>" id="sc-filters-toggle">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                         </svg>
@@ -71,7 +73,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                     </button>
                 </div>
 
-                <div class="sc-advanced-filters" id="sc-advanced-filters" style="display: none;">
+                <div class="sc-advanced-filters" id="sc-advanced-filters" style="display: <?php echo $has_active_filters ? 'block' : 'none'; ?>;">
                     <?php if (!empty($all_faculties)): ?>
                     <!-- Faculty Filter -->
                     <div class="sc-filter-section">
@@ -99,6 +101,23 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                     </div>
                     <?php endif; ?>
 
+                    <!-- Applications Filter -->
+                    <div class="sc-filter-section">
+                        <label class="sc-filter-label">
+                            <span><?php echo esc_html(sc_t('applications_label')); ?></span>
+                        </label>
+                        <label class="sc-filter-option sc-filter-option-inline <?php echo $open_for_applications ? 'selected' : ''; ?>">
+                            <input
+                                type="checkbox"
+                                name="sc_open_applications"
+                                value="1"
+                                <?php checked($open_for_applications); ?>
+                                class="sc-open-applications-checkbox"
+                            >
+                            <span class="sc-option-text"><?php echo esc_html(sc_t('open_for_applications_only')); ?></span>
+                        </label>
+                    </div>
+
                     <?php if (!empty($all_tags)): ?>
                     <!-- Tags Filter -->
                     <div class="sc-filter-section">
@@ -109,7 +128,12 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                             </svg>
                             <span><?php echo esc_html(sc_t('topic_label')); ?></span>
                         </label>
-                        <div class="sc-filter-options sc-tags-grid">
+                        <div class="sc-tag-tools">
+                            <label class="screen-reader-text" for="sc-tag-filter-search"><?php echo esc_html(sc_t('search_tags_label')); ?></label>
+                            <input type="search" id="sc-tag-filter-search" class="sc-tag-filter-search" placeholder="<?php echo esc_attr(sc_t('search_tags_placeholder')); ?>">
+                            <button type="button" class="sc-tags-expand-toggle" id="sc-tags-expand-toggle" aria-expanded="false"><?php echo esc_html(sc_t('show_all_tags')); ?></button>
+                        </div>
+                        <div class="sc-filter-options sc-tags-grid sc-tags-collapsible" id="sc-tags-grid">
                             <?php foreach ($all_tags as $tag): ?>
                             <label class="sc-filter-option sc-tag-option <?php echo in_array($tag->id, $selected_tags) ? 'selected' : ''; ?>">
                                 <input 
@@ -128,7 +152,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
 
                     <!-- Filter Actions -->
                     <div class="sc-filter-actions">
-                        <?php if (!empty($selected_tags) || !empty($selected_faculties) || !empty($search_query)): ?>
+                        <?php if ($has_active_filters): ?>
                         <button type="button" class="sc-clear-filters" id="sc-clear-filters-btn">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -144,7 +168,7 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                 </div>
 
                 <!-- Active Filters Display -->
-                <?php if (!empty($selected_tags) || !empty($selected_faculties) || !empty($search_query)): ?>
+                <?php if ($has_active_filters): ?>
                 <div class="sc-active-filters">
                     <div class="sc-active-filters-label"><?php echo esc_html(sc_t('active_filters')); ?></div>
                     <div class="sc-active-filters-list">
@@ -155,6 +179,13 @@ $selected_faculties = isset($_GET['sc_faculties']) ? array_map('intval', (array)
                         </span>
                         <?php endif; ?>
                         
+                        <?php if ($open_for_applications): ?>
+                        <span class="sc-active-filter-badge sc-applications-badge">
+                            <span class="sc-filter-icon">✅</span>
+                            <?php echo esc_html(sc_t('open_for_applications_only')); ?>
+                        </span>
+                        <?php endif; ?>
+
                         <?php foreach ($selected_faculties as $faculty_id): 
                             $faculty = $wpdb->get_row($wpdb->prepare("SELECT faculty_name FROM $faculties_table WHERE id = %d", $faculty_id));
                             if ($faculty):
@@ -224,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Handle filter checkbox styling
-    const checkboxes = document.querySelectorAll('.sc-tag-checkbox, .sc-faculty-checkbox');
+    const checkboxes = document.querySelectorAll('.sc-tag-checkbox, .sc-faculty-checkbox, .sc-open-applications-checkbox');
     checkboxes.forEach(function(checkbox) {
         checkbox.addEventListener('change', function() {
             const label = this.closest('.sc-filter-option');
@@ -236,11 +267,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+
+    // Search and expand/collapse the large tags list.
+    const tagSearch = document.getElementById('sc-tag-filter-search');
+    const tagsGrid = document.getElementById('sc-tags-grid');
+    const tagsToggle = document.getElementById('sc-tags-expand-toggle');
+
+    if (tagsGrid && tagsToggle) {
+        tagsToggle.addEventListener('click', function() {
+            const expanded = tagsGrid.classList.toggle('is-expanded');
+            tagsToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            tagsToggle.textContent = expanded ? <?php echo wp_json_encode(sc_t('collapse_tags')); ?> : <?php echo wp_json_encode(sc_t('show_all_tags')); ?>;
+        });
+    }
+
+    if (tagSearch && tagsGrid) {
+        tagSearch.addEventListener('input', function() {
+            const query = tagSearch.value.trim().toLowerCase();
+            tagsGrid.classList.toggle('is-searching', query.length > 0);
+            tagsGrid.querySelectorAll('.sc-tag-option').forEach(function(option) {
+                const text = option.textContent.trim().toLowerCase();
+                option.hidden = query.length > 0 && !text.includes(query);
+            });
+        });
+    }
+
     // Clear filters button
     const clearBtn = document.getElementById('sc-clear-filters-btn');
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            document.querySelectorAll('.sc-tag-checkbox, .sc-faculty-checkbox').forEach(function(cb) {
+            document.querySelectorAll('.sc-tag-checkbox, .sc-faculty-checkbox, .sc-open-applications-checkbox').forEach(function(cb) {
                 cb.checked = false;
                 cb.closest('.sc-filter-option').classList.remove('selected');
             });

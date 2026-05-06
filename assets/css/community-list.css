@@ -738,3 +738,25 @@
         border-top: 2px solid var(--ug-gray-300);
     }
 }
+
+.sc-card-footer .sc-apply-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border: 2px solid var(--ug-blue);
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    font-weight: 800;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--ug-transition);
+}
+
+.sc-card-footer .sc-apply-button:hover {
+    background: var(--ug-blue-dark);
+    border-color: var(--ug-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--ug-shadow-md);
+}
