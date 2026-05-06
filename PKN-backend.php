@@ -285,6 +285,7 @@ function sc_create_tables() {
         instagram VARCHAR(512),
         tiktok VARCHAR(512),
         discord VARCHAR(512),
+        other_links TEXT,
         logo VARCHAR(512),
         contact_email VARCHAR(255),
         open_for_applications TINYINT(1) DEFAULT 1,
@@ -403,10 +404,30 @@ function sc_create_tables() {
     ) $charset_collate;";
     dbDelta($sql);
 
-    // 9. Statistics/events table
+    // 9. Import/update history
+    $sql = "CREATE TABLE {$wpdb->prefix}science_communities_update_history (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        actor_name VARCHAR(255) NOT NULL,
+        actor_user_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+        action VARCHAR(50) NOT NULL DEFAULT 'import',
+        filename VARCHAR(255),
+        communities_created int(11) NOT NULL DEFAULT 0,
+        communities_updated int(11) NOT NULL DEFAULT 0,
+        communities_deleted int(11) NOT NULL DEFAULT 0,
+        communities_skipped int(11) NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY actor_user_id (actor_user_id),
+        KEY action (action),
+        KEY created_at (created_at)
+    ) $charset_collate;";
+    dbDelta($sql);
+
+    // 10. Statistics/events table
     sc_create_statistics_table();
 
-    // 10. Community galleries
+    // 11. Community galleries
     $sql = "CREATE TABLE {$wpdb->prefix}science_community_images (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         community_id VARCHAR(5) NOT NULL,
@@ -420,7 +441,7 @@ function sc_create_tables() {
     ) $charset_collate;";
     dbDelta($sql);
 
-    // 11. Contact requests from community admins to superadmins
+    // 12. Contact requests from community admins to superadmins
     $sql = "CREATE TABLE {$wpdb->prefix}science_contact_requests (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         community_id VARCHAR(5) NOT NULL,
@@ -443,6 +464,18 @@ function sc_create_tables() {
 /**
  * Insert default faculties into the database
  */
+
+function sc_maybe_upgrade_schema() {
+    $schema_version = '2026-05-06-import-history-links';
+    if (get_option('sc_schema_version') === $schema_version) {
+        return;
+    }
+
+    sc_create_tables();
+    update_option('sc_schema_version', $schema_version);
+}
+add_action('admin_init', 'sc_maybe_upgrade_schema');
+
 function sc_insert_default_faculties() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'science_faculties';
@@ -919,11 +952,11 @@ function sc_handle_add_community() {
     sc_log_admin_flow_request('ADD COMMUNITY ADMIN-POST');
 
     if (!is_user_logged_in() || !sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     if (!isset($_POST['sc_add_community_nonce']) || !wp_verify_nonce($_POST['sc_add_community_nonce'], 'sc_add_community')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $rate_check = sc_can_user_edit_now(get_current_user_id(), 'new');
@@ -949,6 +982,7 @@ function sc_handle_add_community() {
         'instagram' => esc_url_raw($_POST['instagram'] ?? ''),
         'tiktok' => esc_url_raw($_POST['tiktok'] ?? ''),
         'discord' => esc_url_raw($_POST['discord'] ?? ''),
+        'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
         'logo' => esc_url_raw($_POST['logo'] ?? ''),
         'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
@@ -983,7 +1017,7 @@ function sc_handle_edit_community() {
 
     if (!isset($_POST['sc_edit_community_nonce']) || 
         !wp_verify_nonce($_POST['sc_edit_community_nonce'], 'sc_edit_community')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
     
     $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
@@ -993,7 +1027,7 @@ function sc_handle_edit_community() {
             'user_id' => get_current_user_id(),
             'community_id' => $community_id
         ));
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     $data = array(
@@ -1006,9 +1040,12 @@ function sc_handle_edit_community() {
         'instagram' => esc_url_raw($_POST['instagram']),
         'tiktok' => esc_url_raw($_POST['tiktok']),
         'discord' => esc_url_raw($_POST['discord']),
+        'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
         'logo' => esc_url_raw($_POST['logo']),
         'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
         'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
+        'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
+        'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
         'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
         'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
         'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
@@ -1046,14 +1083,14 @@ function sc_handle_submit_contact_request() {
     }
 
     if (!isset($_POST['sc_contact_request_nonce']) || !wp_verify_nonce($_POST['sc_contact_request_nonce'], 'sc_contact_request')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
     $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
 
     if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id) || sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     sc_create_contact_request($community_id, $message, get_current_user_id());
@@ -1069,7 +1106,7 @@ add_action('admin_post_sc_submit_contact_request', 'sc_handle_submit_contact_req
 
 function sc_handle_submit_join_application() {
     if (!isset($_POST['sc_join_application_nonce']) || !wp_verify_nonce($_POST['sc_join_application_nonce'], 'sc_join_application')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
     $community_id = sanitize_text_field($_POST['community_id'] ?? '');
     $name = sanitize_text_field($_POST['applicant_name'] ?? '');
@@ -1109,11 +1146,11 @@ add_action('admin_post_nopriv_sc_submit_join_application', 'sc_handle_submit_joi
 
 function sc_handle_assign_user_to_community() {
     if (!is_user_logged_in() || !sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     if (!isset($_POST['sc_assign_user_to_community_nonce']) || !wp_verify_nonce($_POST['sc_assign_user_to_community_nonce'], 'sc_assign_user_to_community')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
@@ -1135,11 +1172,11 @@ add_action('admin_post_sc_assign_user_to_community', 'sc_handle_assign_user_to_c
 
 function sc_handle_update_admin_profile() {
     if (!is_user_logged_in() || sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     if (!isset($_POST['sc_update_admin_profile_nonce']) || !wp_verify_nonce($_POST['sc_update_admin_profile_nonce'], 'sc_update_admin_profile')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $display_name = isset($_POST['display_name']) ? sanitize_text_field(wp_unslash($_POST['display_name'])) : '';
@@ -1159,18 +1196,18 @@ add_action('admin_post_sc_update_admin_profile', 'sc_handle_update_admin_profile
 
 function sc_handle_request_community_removal() {
     if (!is_user_logged_in() || sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     if (!isset($_POST['sc_request_community_removal_nonce']) || !wp_verify_nonce($_POST['sc_request_community_removal_nonce'], 'sc_request_community_removal')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
     $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
 
     if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id)) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     sc_create_contact_request($community_id, '[REMOVAL REQUEST] ' . $message, get_current_user_id());
@@ -1181,18 +1218,18 @@ add_action('admin_post_sc_request_community_removal', 'sc_handle_request_communi
 
 function sc_handle_submit_general_request() {
     if (!is_user_logged_in() || sc_is_superadmin()) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     if (!isset($_POST['sc_submit_general_request_nonce']) || !wp_verify_nonce($_POST['sc_submit_general_request_nonce'], 'sc_submit_general_request')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'science-communities'));
     }
 
     $community_id = isset($_POST['community_id']) ? sanitize_text_field($_POST['community_id']) : '';
     $message = isset($_POST['request_message']) ? sanitize_textarea_field(wp_unslash($_POST['request_message'])) : '';
 
     if (empty($community_id) || empty($message) || !sc_user_can_edit_community($community_id)) {
-        wp_die('Permission denied');
+        wp_die(__('Permission denied', 'science-communities'));
     }
 
     sc_create_contact_request($community_id, '[GENERAL REQUEST] ' . $message, get_current_user_id());
@@ -1446,6 +1483,12 @@ function sc_handle_excel_import() {
         add_settings_error('pkn_messages', 'pkn_message', __('No file uploaded.', 'science-communities'), 'error');
         return;
     }
+
+    $importer_name = isset($_POST['importer_name']) ? sanitize_text_field(wp_unslash($_POST['importer_name'])) : '';
+    if ($importer_name === '') {
+        add_settings_error('pkn_messages', 'pkn_message', __('Please enter your name before importing.', 'science-communities'), 'error');
+        return;
+    }
     
     require_once(ABSPATH . 'wp-admin/includes/file.php');
     
@@ -1454,13 +1497,16 @@ function sc_handle_excel_import() {
     $movefile = wp_handle_upload($file, $upload_overrides);
     
     if ($movefile && !isset($movefile['error'])) {
-        $imported = sc_import_from_excel($movefile['file']);
+        $imported = sc_import_from_excel($movefile['file'], array(
+            'actor_name' => $importer_name,
+            'filename' => basename($file['name'] ?? $movefile['file']),
+        ));
         
         if ($imported['success']) {
             add_settings_error(
                 'pkn_messages',
                 'pkn_message',
-                sprintf(__('%d communities imported successfully.', 'science-communities'), $imported['count']),
+                sprintf(__('Import completed. Created: %1$d, updated: %2$d, skipped: %3$d.', 'science-communities'), (int) $imported['created'], (int) $imported['updated'], (int) $imported['skipped']),
                 'success'
             );
         } else {
@@ -1512,15 +1558,15 @@ function sc_handle_communities_export() {
         'shortdescription',
         'description',
         'faculty',
-        'status',
-        'is_archived',
         'webpage',
         'facebook',
         'instagram',
-        'tiktok',
         'discord',
+        'inne',
+        'mail',
         'logo',
         'tags',
+        'status',
     ), '|');
 
     foreach ($rows as $row) {
@@ -1531,15 +1577,15 @@ function sc_handle_communities_export() {
             $row->shortdescription,
             $row->description,
             $row->faculty_name,
-            $row->status,
-            (int) $row->is_archived,
             $row->webpage,
             $row->facebook,
             $row->instagram,
-            $row->tiktok,
             $row->discord,
+            str_replace("\n", ', ', (string) ($row->other_links ?? '')),
+            $row->contact_email,
             $row->logo,
             implode(', ', $tag_names),
+            $row->is_archived ? -1 : ($row->status === 'active' ? 1 : ($row->status === 'limited' ? 0.5 : 0)),
         ), '|');
     }
 

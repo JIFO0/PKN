@@ -137,8 +137,8 @@ function sc_save_community($data) {
     $table_name = $wpdb->prefix . 'science_communities';
 
     // Validate required fields
-    if (empty($data['name']) || empty($data['shortdescription'])) {
-        return 'Name and short description are required';
+    if (empty($data['name'])) {
+        return __('Name is required.', 'science-communities');
     }
 
     // Sanitize input data
@@ -151,6 +151,7 @@ function sc_save_community($data) {
         'instagram' => esc_url_raw($data['instagram'] ?? ''),
         'tiktok' => esc_url_raw($data['tiktok'] ?? ''),
         'discord' => esc_url_raw($data['discord'] ?? ''),
+        'other_links' => sc_sanitize_links_list($data['other_links'] ?? ''),
         'logo' => esc_url_raw($data['logo'] ?? ''),
         'contact_email' => sanitize_email($data['contact_email'] ?? ''),
         'open_for_applications' => isset($data['open_for_applications']) ? intval((bool) $data['open_for_applications']) : 1,
@@ -507,6 +508,11 @@ function sc_normalize_import_header($header) {
         'www' => 'webpage',
         'strona' => 'webpage',
         'strona_www' => 'webpage',
+        'inne' => 'other_links',
+        'other' => 'other_links',
+        'other_links' => 'other_links',
+        'mail' => 'contact_email',
+        'email' => 'contact_email',
     );
 
     return isset($aliases[$header]) ? $aliases[$header] : $header;
@@ -561,6 +567,108 @@ function sc_is_empty_import_row($row) {
 }
 
 
+
+function sc_sanitize_links_list($links_raw) {
+    $links_raw = is_array($links_raw) ? implode(',', $links_raw) : (string) $links_raw;
+    $links_raw = trim($links_raw);
+    if ($links_raw === '') {
+        return '';
+    }
+
+    $parts = preg_split('/[,\n\r]+/', $links_raw);
+    $links = array();
+    foreach ((array) $parts as $part) {
+        $url = esc_url_raw(trim((string) $part));
+        if ($url !== '') {
+            $links[] = $url;
+        }
+    }
+
+    return implode("\n", array_values(array_unique($links)));
+}
+
+function sc_get_links_list($links_raw) {
+    $links_raw = (string) $links_raw;
+    if (trim($links_raw) === '') {
+        return array();
+    }
+
+    $parts = preg_split('/[,\n\r]+/', $links_raw);
+    $links = array();
+    foreach ((array) $parts as $part) {
+        $url = esc_url(trim((string) $part));
+        if ($url !== '') {
+            $links[] = $url;
+        }
+    }
+
+    return array_values(array_unique($links));
+}
+
+function sc_parse_import_status($status_raw) {
+    $status_raw = trim(str_replace(',', '.', (string) $status_raw));
+    if ($status_raw === '') {
+        return array('status' => 'active', 'is_archived' => 0);
+    }
+
+    if (is_numeric($status_raw)) {
+        $status_value = (float) $status_raw;
+        if ($status_value < 0) {
+            return array('status' => 'suspended', 'is_archived' => 1);
+        }
+        if ($status_value == 0.0) {
+            return array('status' => 'suspended', 'is_archived' => 0);
+        }
+        if ($status_value > 0.0 && $status_value < 1.0) {
+            return array('status' => 'limited', 'is_archived' => 0);
+        }
+        return array('status' => 'active', 'is_archived' => 0);
+    }
+
+    $status_key = sanitize_key($status_raw);
+    if (in_array($status_key, array('active', 'limited', 'suspended', 'inactive'), true)) {
+        return array('status' => $status_key, 'is_archived' => 0);
+    }
+
+    return array('status' => 'active', 'is_archived' => 0);
+}
+
+function sc_record_update_history($args) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'science_communities_update_history';
+
+    $defaults = array(
+        'actor_name' => '',
+        'actor_user_id' => get_current_user_id(),
+        'action' => 'import',
+        'filename' => '',
+        'communities_created' => 0,
+        'communities_updated' => 0,
+        'communities_deleted' => 0,
+        'communities_skipped' => 0,
+        'notes' => '',
+    );
+    $args = wp_parse_args((array) $args, $defaults);
+
+    $actor_name = sanitize_text_field($args['actor_name']);
+    if ($actor_name === '') {
+        $user = wp_get_current_user();
+        $actor_name = $user && $user->exists() ? $user->display_name : __('Unknown', 'science-communities');
+    }
+
+    return (bool) $wpdb->insert($table, array(
+        'actor_name' => $actor_name,
+        'actor_user_id' => (int) $args['actor_user_id'],
+        'action' => sanitize_key($args['action']),
+        'filename' => sanitize_file_name($args['filename']),
+        'communities_created' => (int) $args['communities_created'],
+        'communities_updated' => (int) $args['communities_updated'],
+        'communities_deleted' => (int) $args['communities_deleted'],
+        'communities_skipped' => (int) $args['communities_skipped'],
+        'notes' => sanitize_textarea_field($args['notes']),
+    ));
+}
+
 function sc_parse_import_tags($tags_raw) {
     $tags_raw = trim((string) $tags_raw);
     if ($tags_raw === '') {
@@ -596,7 +704,7 @@ function sc_cleanup_broken_semicolon_tags() {
  * @param string $file_path Path to the Excel file
  * @return array Result with success status and count
  */
-function sc_import_from_excel($file_path) {
+function sc_import_from_excel($file_path, $args = array()) {
     sc_import_log('Import started. File: ' . basename((string) $file_path));
     $removed_broken_tags = sc_cleanup_broken_semicolon_tags();
     if ($removed_broken_tags > 0) {
@@ -635,6 +743,8 @@ function sc_import_from_excel($file_path) {
     sc_import_log('Detected delimiter: "' . $delimiter . '"');
     $updated_count = 0;
     $skipped_missing_name = 0;
+    $skipped_zero_id = 0;
+    $skipped_count = 0;
     $processed_rows = 0;
 
     while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
@@ -662,10 +772,18 @@ function sc_import_from_excel($file_path) {
         }
 
         $name = isset($data['name']) ? sanitize_text_field($data['name']) : '';
+        $provided_community_id = isset($data['community_id']) ? sanitize_text_field($data['community_id']) : '';
+
+        if ($provided_community_id === '0') {
+            $skipped_zero_id++;
+            $skipped_count++;
+            continue;
+        }
 
         // Required fields
         if ($name === '') {
             $skipped_missing_name++;
+            $skipped_count++;
             continue; // Skip rows without name
         }
         
@@ -686,34 +804,55 @@ function sc_import_from_excel($file_path) {
             }
         }
         
+        $status_data = sc_parse_import_status($data['status'] ?? '');
+
         // Prepare community data
         $community_data = array(
+            'community_id' => $provided_community_id,
             'name' => $name,
-            'shortdescription' => isset($data['shortdescription']) ? $data['shortdescription'] : '',
-            'description' => isset($data['description']) ? $data['description'] : '',
+            'shortdescription' => isset($data['shortdescription']) ? sanitize_textarea_field($data['shortdescription']) : '',
+            'description' => isset($data['description']) ? wp_kses_post($data['description']) : '',
             'webpage' => isset($data['webpage']) ? esc_url_raw($data['webpage']) : '',
             'facebook' => isset($data['facebook']) ? esc_url_raw($data['facebook']) : '',
             'instagram' => isset($data['instagram']) ? esc_url_raw($data['instagram']) : '',
             'tiktok' => isset($data['tiktok']) ? esc_url_raw($data['tiktok']) : '',
             'discord' => isset($data['discord']) ? esc_url_raw($data['discord']) : '',
+            'other_links' => sc_sanitize_links_list($data['other_links'] ?? ''),
             'logo' => isset($data['logo']) ? esc_url_raw($data['logo']) : '',
-            'faculty_id' => $faculty_id
+            'contact_email' => isset($data['contact_email']) ? sanitize_email($data['contact_email']) : '',
+            'faculty_id' => $faculty_id,
+            'status' => $status_data['status'],
+            'is_archived' => $status_data['is_archived'],
         );
         
-        // Check if community already exists by name
-        $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT community_id FROM $communities_table WHERE name = %s",
-            $community_data['name']
-        ));
+        // Check if community already exists by provided ID, then by name for legacy imports.
+        $existing = '';
+        if ($provided_community_id !== '') {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT community_id FROM $communities_table WHERE community_id = %s",
+                $provided_community_id
+            ));
+        }
+        if (!$existing) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT community_id FROM $communities_table WHERE name = %s",
+                $community_data['name']
+            ));
+        }
         
         $community_id = '';
 
         if ($existing) {
             // Update existing community
             $community_data['community_id'] = $existing;
-            sc_save_community($community_data);
-            $community_id = $existing;
-            $updated_count++;
+            $save_result = sc_save_community($community_data);
+            if ($save_result === true) {
+                $community_id = $existing;
+                $updated_count++;
+            } else {
+                $skipped_count++;
+                sc_import_log('Skipped update for ' . $name . ': ' . (string) $save_result);
+            }
         } else {
             // Create new community
             $new_id = sc_create_community($community_data);
@@ -734,9 +873,20 @@ function sc_import_from_excel($file_path) {
     }
     
     fclose($handle);
-    sc_import_log(sprintf('Import finished. Processed: %d, created: %d, updated: %d, skipped(no name): %d', $processed_rows, $imported_count, $updated_count, $skipped_missing_name));
+    sc_import_log(sprintf('Import finished. Processed: %d, created: %d, updated: %d, skipped(no name): %d, skipped(id 0): %d', $processed_rows, $imported_count, $updated_count, $skipped_missing_name, $skipped_zero_id));
+
+    sc_record_update_history(array(
+        'actor_name' => $args['actor_name'] ?? '',
+        'action' => 'import',
+        'filename' => $args['filename'] ?? basename((string) $file_path),
+        'communities_created' => $imported_count,
+        'communities_updated' => $updated_count,
+        'communities_deleted' => 0,
+        'communities_skipped' => $skipped_count,
+        'notes' => sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id),
+    ));
     
-    return array('success' => true, 'count' => $imported_count);
+    return array('success' => true, 'count' => $imported_count, 'created' => $imported_count, 'updated' => $updated_count, 'deleted' => 0, 'skipped' => $skipped_count);
 }
 
 /**
@@ -845,3 +995,33 @@ function sc_create_contact_request($community_id, $message, $requester_id) {
         array('%s', '%s', '%d', '%s')
     );
 }
+
+/**
+ * Handle clearing import/update history while preserving an audit entry.
+ */
+function sc_handle_clear_update_history() {
+    if (!sc_is_superadmin()) {
+        wp_die(__('Access denied.', 'science-communities'));
+    }
+
+    if (!isset($_POST['sc_clear_update_history_nonce']) || !wp_verify_nonce($_POST['sc_clear_update_history_nonce'], 'sc_clear_update_history')) {
+        wp_die(__('Security check failed.', 'science-communities'));
+    }
+
+    global $wpdb;
+    $history_table = $wpdb->prefix . 'science_communities_update_history';
+    $actor_name = isset($_POST['history_actor_name']) ? sanitize_text_field(wp_unslash($_POST['history_actor_name'])) : '';
+    $deleted = (int) $wpdb->get_var("SELECT COUNT(*) FROM $history_table");
+    $wpdb->query("TRUNCATE TABLE $history_table");
+
+    sc_record_update_history(array(
+        'actor_name' => $actor_name,
+        'action' => 'history_cleared',
+        'communities_deleted' => 0,
+        'notes' => sprintf(__('History was cleared. Removed history entries: %d.', 'science-communities'), $deleted),
+    ));
+
+    wp_safe_redirect(add_query_arg('history_cleared', '1', admin_url('admin.php?page=pkn-import')));
+    exit;
+}
+add_action('admin_post_sc_clear_update_history', 'sc_handle_clear_update_history');
