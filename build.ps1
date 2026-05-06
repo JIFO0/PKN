@@ -8,8 +8,44 @@ function Exit-Script([int]$Code = 0) {
     Write-Host "Press any key to close..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit $Code
+	
 }
- 
+
+function Ensure-GhConfigured {
+    # Check gh is installed
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        Write-Host ""
+        Write-Host "GitHub CLI (gh) is not installed." -ForegroundColor Yellow
+        Write-Host "Download it from: https://cli.github.com/" -ForegroundColor Cyan
+        Write-Host "After installing, re-run this script."
+        Exit-Script 1
+    }
+
+    # Check if authenticated
+    $authStatus = & gh auth status 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "GitHub CLI is not authenticated. Starting login..." -ForegroundColor Yellow
+        gh auth login
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: GitHub authentication failed." -ForegroundColor Red
+            Exit-Script 1
+        }
+        Write-Host "Authentication successful." -ForegroundColor Green
+    }
+
+    # Check if inside a git repo with a remote
+    $remoteUrl = git remote get-url origin 2>&1
+    if ($LASTEXITCODE -ne 0 -or -not $remoteUrl) {
+        Write-Host ""
+        Write-Host "ERROR: No 'origin' remote found in this repository." -ForegroundColor Red
+        Write-Host "Run: git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git" -ForegroundColor Cyan
+        Exit-Script 1
+    }
+
+    Write-Host "GitHub CLI ready. Remote: $remoteUrl" -ForegroundColor Green
+}
+
 try {
  
 # Resolve root dir relative to THIS script file â€” works both when
@@ -107,18 +143,32 @@ Write-Host "Manifest updated: $ManifestPath" -ForegroundColor Green
     Exit-Script 1
 }
  
-if ($env:SC_CREATE_GITHUB_RELEASE -eq '1') {
-    if (Get-Command gh -ErrorAction SilentlyContinue) {
-        $Tag = "v$Version"
-        gh release view $Tag *> $null
-        if ($LASTEXITCODE -ne 0) {
-            gh release create $Tag $ZipPath --title "PKN Backend $Version" --notes "Automated release for $Version"
-        }
-        gh release upload $Tag $ZipPath --clobber
-        Write-Host "Release asset uploaded to GitHub release: $Tag" -ForegroundColor Green
-    } else {
-        Write-Host "SC_CREATE_GITHUB_RELEASE=1 set but gh CLI is not installed." -ForegroundColor Yellow
+Ensure-GhConfigured
+
+$Tag = "v$SafeVersion"
+Write-Host ""
+Write-Host "Uploading to GitHub release: $Tag ..." -ForegroundColor Cyan
+
+$ErrorActionPreference = 'Continue'
+$releaseExists = & gh release view $Tag 2>&1
+$ErrorActionPreference = 'Stop'
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Creating new release $Tag..."
+    gh release create $Tag $ZipPath --title "PKN Backend $Version" --notes "Automated release for $Version"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Failed to create GitHub release." -ForegroundColor Red
+        Write-Host "Details: $releaseExists" -ForegroundColor Red
+        Exit-Script 1
+    }
+} else {
+    Write-Host "Release $Tag already exists, uploading asset..."
+    gh release upload $Tag $ZipPath --clobber
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Failed to upload asset to release $Tag." -ForegroundColor Red
+        Exit-Script 1
     }
 }
+
+Write-Host "Release asset uploaded: $Tag" -ForegroundColor Green
  
 Exit-Script 0
