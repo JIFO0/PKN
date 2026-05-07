@@ -12,3 +12,4 @@
 .vscode/*
 .dist/*
 .builds/old/*
+**/*.zip

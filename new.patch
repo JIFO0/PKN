@@ -1,0 +1,2070 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/PKN-backend.php b/PKN-backend.php
+index f4466c913c6ee6e22ba5221d468a33ca7cfc25fe..2eb7181db703f5fbb977dc00eb6128077a83e6a9 100644
+--- a/PKN-backend.php
++++ b/PKN-backend.php
+@@ -260,58 +260,64 @@ function sc_maybe_ensure_required_pages() {
+     $is_missing_any = false;
+ 
+     foreach ($required_shortcodes as $shortcode) {
+         if (empty($page_map[$shortcode]) || !sc_find_page_id_by_shortcode($shortcode)) {
+             $is_missing_any = true;
+             break;
+         }
+     }
+ 
+     $last_version = get_option('sc_pages_ensured_version', '');
+     if ($is_missing_any || $last_version !== SC_PLUGIN_VERSION) {
+         sc_ensure_required_pages();
+         update_option('sc_pages_ensured_version', SC_PLUGIN_VERSION, false);
+     }
+ }
+ add_action('admin_init', 'sc_maybe_ensure_required_pages');
+ 
+ function sc_handle_social_tracking_redirect() {
+     if (!isset($_GET['sc_track_social']) || (int) $_GET['sc_track_social'] !== 1) {
+         return;
+     }
+ 
+     $community_id = isset($_GET['community_id']) ? sanitize_text_field($_GET['community_id']) : '';
+     $platform = isset($_GET['platform']) ? sanitize_key($_GET['platform']) : '';
+     $redirect_to = isset($_GET['redirect_to']) ? esc_url_raw(rawurldecode($_GET['redirect_to'])) : '';
++    $allowed_platforms = array('facebook', 'instagram', 'tiktok', 'discord', 'webpage');
+ 
+-    if (!empty($community_id) && !empty($platform)) {
++    if (!empty($community_id) && !empty($platform) && in_array($platform, $allowed_platforms, true)) {
+         sc_track_social_click($community_id, $platform);
+     }
+ 
+-    if (!empty($redirect_to)) {
+-        wp_safe_redirect($redirect_to);
+-        exit;
++    if (!empty($redirect_to) && in_array($platform, $allowed_platforms, true)) {
++        $community = sc_get_community_by_id($community_id);
++        $stored_url = is_array($community) && !empty($community[$platform]) ? esc_url_raw($community[$platform]) : '';
++        $scheme = wp_parse_url($redirect_to, PHP_URL_SCHEME);
++        if ($stored_url !== '' && $stored_url === $redirect_to && in_array(strtolower((string) $scheme), array('http', 'https'), true)) {
++            wp_redirect($redirect_to);
++            exit;
++        }
+     }
+ }
+ add_action('template_redirect', 'sc_handle_social_tracking_redirect');
+ 
+ /**
+  * Create database tables
+  */
+ function sc_create_tables() {
+     global $wpdb;
+     $charset_collate = $wpdb->get_charset_collate();
+     
+     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+     
+     // 1. Communities table
+     $sql = "CREATE TABLE {$wpdb->prefix}science_communities (
+         id mediumint(9) NOT NULL AUTO_INCREMENT,
+         community_id VARCHAR(5) NOT NULL,
+         name VARCHAR(255) NOT NULL,
+         shortdescription VARCHAR(512),
+         description LONGTEXT,
+         webpage VARCHAR(512),
+         facebook VARCHAR(512),
+         instagram VARCHAR(512),
+         tiktok VARCHAR(512),
+         discord VARCHAR(512),
+@@ -474,51 +480,51 @@ function sc_create_tables() {
+     // 12. Contact requests from community admins to superadmins
+     $sql = "CREATE TABLE {$wpdb->prefix}science_contact_requests (
+         id bigint(20) NOT NULL AUTO_INCREMENT,
+         community_id VARCHAR(5) NOT NULL,
+         requester_id bigint(20) UNSIGNED NOT NULL,
+         message TEXT NOT NULL,
+         status VARCHAR(20) NOT NULL DEFAULT 'open',
+         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         PRIMARY KEY (id),
+         KEY community_id (community_id),
+         KEY requester_id (requester_id),
+         KEY status (status)
+     ) $charset_collate;";
+     dbDelta($sql);
+ 
+     // 12-13. Forum tables
+     sc_forum_create_tables();
+     sc_forum_maybe_install();
+ }
+ 
+ /**
+  * Insert default faculties into the database
+  */
+ 
+ function sc_maybe_upgrade_schema() {
+-    $schema_version = '2026-05-06-import-history-links';
++    $schema_version = '2026-05-07-history-tags-updater';
+     if (get_option('sc_schema_version') === $schema_version) {
+         return;
+     }
+ 
+     sc_create_tables();
+     update_option('sc_schema_version', $schema_version);
+ }
+ add_action('admin_init', 'sc_maybe_upgrade_schema');
+ 
+ function sc_insert_default_faculties() {
+     global $wpdb;
+     $table_name = $wpdb->prefix . 'science_faculties';
+     
+     $faculties = array(
+         'Wydział Ekonomiczny',
+         'Wydział Biologii',
+         'Wydział Zarządzania',
+         'Wydział Oceanografii i Geografii',
+         'Wydział Matematyki, Fizyki i Informatyki',
+         'Wydział Historyczny',
+         'Wydział Nauk Społecznych',
+         'Wydział Chemii',
+         'Wydział Filologiczny',
+         'Wydział Prawa i Administracji',
+         'Wydział Biotechnologii UG i GUMed',
+@@ -890,116 +896,147 @@ function sc_ajax_upload_logo() {
+         wp_send_json_error('No file provided.');
+     }
+     
+     $user_id = get_current_user_id();
+     $result = sc_handle_logo_upload($_FILES['logo_file'], $user_id);
+     
+     if ($result['success']) {
+         wp_send_json_success($result);
+     } else {
+         wp_send_json_error($result['message']);
+     }
+ }
+ add_action('wp_ajax_sc_upload_logo', 'sc_ajax_upload_logo');
+ 
+ 
+ /**
+  * Extract facebook page username or id from URL/handle.
+  */
+ function sc_extract_facebook_identifier($value) {
+     $value = trim((string) $value);
+     if ($value === '') return '';
+     if (preg_match('#^https?://#i', $value)) {
+         $path = wp_parse_url($value, PHP_URL_PATH);
+         $segments = array_values(array_filter(explode('/', (string) $path)));
+         if (!empty($segments)) {
+-            $first = $segments[0];
+-            if (in_array(strtolower($first), array('pages','pg')) && !empty($segments[1])) {
++            $first = strtolower((string) $segments[0]);
++            if (in_array($first, array('groups', 'profile.php', 'people'), true)) {
++                return new WP_Error('unsupported_facebook_url', __('Facebook groups and profiles cannot be pulled reliably without a Facebook API permissioned app. Skipped.', 'science-communities'));
++            }
++            if (in_array($first, array('pages','pg'), true) && !empty($segments[1])) {
+                 return sanitize_text_field($segments[1]);
+             }
+-            return sanitize_text_field($first);
++            return sanitize_text_field($segments[0]);
+         }
+     }
+     return sanitize_text_field(ltrim($value, '@/'));
+ }
+ 
+ function sc_fetch_facebook_page_data($facebook_input) {
+     $identifier = sc_extract_facebook_identifier($facebook_input);
++    if (is_wp_error($identifier)) return $identifier;
+     if ($identifier === '') return new WP_Error('missing_identifier', 'Missing Facebook page URL or username.');
+ 
+     $cache_key = 'sc_fb_' . md5($identifier);
+     $cached = get_transient($cache_key);
+     if (is_array($cached)) return $cached;
+ 
+     $token = trim((string) get_option('sc_facebook_app_token', ''));
+     $endpoint = 'https://graph.facebook.com/v19.0/' . rawurlencode($identifier);
+     $query = array('fields' => 'name,about,description,cover,picture.type(large)');
+     if ($token !== '') $query['access_token'] = $token;
+ 
+     $response = wp_remote_get(add_query_arg($query, $endpoint), array('timeout' => 20));
+     if (is_wp_error($response)) return $response;
+     $code = (int) wp_remote_retrieve_response_code($response);
+     $body = json_decode(wp_remote_retrieve_body($response), true);
+ 
+     if ($code >= 400 || isset($body['error'])) {
+         $fallback_url = 'https://graph.facebook.com/' . rawurlencode($identifier) . '/picture?type=large&redirect=true';
+         return array('name' => '', 'about' => '', 'description' => '', 'cover_url' => '', 'picture_url' => esc_url_raw($fallback_url), 'fallback_only' => true);
+     }
+ 
+     $data = array(
+         'name' => sanitize_text_field($body['name'] ?? ''),
+         'about' => sanitize_textarea_field($body['about'] ?? ''),
+         'description' => sanitize_textarea_field($body['description'] ?? ''),
+         'cover_url' => esc_url_raw($body['cover']['source'] ?? ''),
+         'picture_url' => esc_url_raw($body['picture']['data']['url'] ?? ''),
+         'fallback_only' => false,
+     );
+     set_transient($cache_key, $data, 7 * DAY_IN_SECONDS);
+     return $data;
+ }
+ 
+ function sc_ajax_pull_facebook_data() {
+     check_ajax_referer('science_communities_nonce', 'nonce');
+     if (!is_user_logged_in()) wp_send_json_error('Login required.');
+ 
+     $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+     if (!$community_id || !sc_user_can_edit_community($community_id)) wp_send_json_error('No permission.');
+ 
+     $community = sc_get_community_by_id($community_id);
+-    $fb_input = sanitize_text_field($_POST['facebook'] ?? ($community['facebook'] ?? ''));
++    if (!$community) wp_send_json_error('Community not found.');
++
++    $fb_input = esc_url_raw($_POST['facebook'] ?? ($community['facebook'] ?? ''));
++    if ($fb_input === '' && !empty($community['facebook'])) {
++        $fb_input = esc_url_raw($community['facebook']);
++    }
++
+     $fb = sc_fetch_facebook_page_data($fb_input);
+     if (is_wp_error($fb)) wp_send_json_error($fb->get_error_message());
+ 
+     global $wpdb;
+     $table = $wpdb->prefix . 'science_communities';
+-    $updates = array('facebook' => esc_url_raw($fb_input), 'updated_at' => current_time('mysql'));
+-    if (!empty($fb['picture_url'])) $updates['logo'] = $fb['picture_url'];
+-    if (!empty($fb['about']) && empty($community['shortdescription'])) $updates['shortdescription'] = $fb['about'];
+-    if (!empty($fb['description']) && empty($community['description'])) $updates['description'] = $fb['description'];
+-    $wpdb->update($table, $updates, array('community_id' => $community_id));
++    $updates = array('updated_at' => current_time('mysql'));
++    $changed_fields = array();
++    if (empty($community['facebook']) && $fb_input !== '') {
++        $updates['facebook'] = $fb_input;
++        $changed_fields[] = 'facebook';
++    }
++    if (!empty($fb['picture_url']) && empty($community['logo'])) {
++        $updates['logo'] = $fb['picture_url'];
++        $changed_fields[] = 'logo';
++    }
++    if (!empty($fb['about']) && empty($community['shortdescription'])) {
++        $updates['shortdescription'] = $fb['about'];
++        $changed_fields[] = 'shortdescription';
++    }
++    if (!empty($fb['description']) && empty($community['description'])) {
++        $updates['description'] = $fb['description'];
++        $changed_fields[] = 'description';
++    }
++
++    if (!empty($changed_fields)) {
++        $wpdb->update($table, $updates, array('community_id' => $community_id));
++    }
+ 
+-    wp_send_json_success(array('message' => 'Facebook data pulled successfully.', 'data' => $fb));
++    wp_send_json_success(array(
++        'message' => empty($changed_fields) ? __('Facebook pull skipped because existing fields are already filled.', 'science-communities') : __('Facebook data pulled successfully.', 'science-communities'),
++        'data' => $fb,
++        'changed_fields' => $changed_fields,
++    ));
+ }
+ add_action('wp_ajax_sc_pull_facebook_data', 'sc_ajax_pull_facebook_data');
+ 
+ /**
+  * Focused request logging for admin add/edit flow debugging.
+  */
+ function sc_log_admin_flow_request($label) {
+     $uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+     $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+     $referer = isset($_SERVER['HTTP_REFERER']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_REFERER'])) : '';
+     $content_type = isset($_SERVER['CONTENT_TYPE']) ? sanitize_text_field(wp_unslash($_SERVER['CONTENT_TYPE'])) : '';
+ 
+     error_log('==== ' . $label . ' ====');
+     error_log('REQUEST_METHOD: ' . $method);
+     error_log('REQUEST_URI: ' . $uri);
+     error_log('REFERER: ' . $referer);
+     error_log('CONTENT_TYPE: ' . $content_type);
+     error_log('POST keys: ' . implode(', ', array_keys($_POST)));
+ }
+ 
+ /**
+  * Handle add community form submission via admin-post.php.
+  */
+ function sc_handle_add_community() {
+     sc_log_admin_flow_request('ADD COMMUNITY ADMIN-POST');
+@@ -1018,51 +1055,54 @@ function sc_handle_add_community() {
+             array(
+                 'action' => 'add',
+                 'error' => rawurlencode($rate_check['message'])
+             ),
+             sc_get_admin_page_url()
+         );
+         wp_safe_redirect($redirect_url);
+         exit;
+     }
+ 
+     $data = array(
+         'community_id' => '',
+         'name' => sanitize_text_field($_POST['name'] ?? ''),
+         'shortdescription' => sanitize_textarea_field($_POST['shortdescription'] ?? ''),
+         'description' => wp_kses_post($_POST['description'] ?? ''),
+         'webpage' => esc_url_raw($_POST['webpage'] ?? ''),
+         'facebook' => esc_url_raw($_POST['facebook'] ?? ''),
+         'instagram' => esc_url_raw($_POST['instagram'] ?? ''),
+         'tiktok' => esc_url_raw($_POST['tiktok'] ?? ''),
+         'discord' => esc_url_raw($_POST['discord'] ?? ''),
+         'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
+         'logo' => esc_url_raw($_POST['logo'] ?? ''),
+         'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
+         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
+         'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
+-        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
++        'tags' => array_merge(
++            isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
++            isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
++        ),
+         'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
+     );
+ 
+     $result = sc_save_community($data);
+ 
+     $redirect_url = add_query_arg(array('action' => 'add'), sc_get_admin_page_url());
+     if ($result === true) {
+         $redirect_url = add_query_arg('updated', '1', $redirect_url);
+     } else {
+         $redirect_url = add_query_arg('error', rawurlencode((string) $result), $redirect_url);
+     }
+ 
+     error_log('Add save result: ' . print_r($result, true));
+     error_log('Add redirect URL: ' . $redirect_url);
+ 
+     wp_safe_redirect($redirect_url);
+     exit;
+ }
+ add_action('admin_post_sc_add_community', 'sc_handle_add_community');
+ add_action('admin_post_nopriv_sc_add_community', 'sc_handle_add_community');
+ 
+ /**
+  * Handle edit community form submission
+  */
+ function sc_handle_edit_community() {
+@@ -1078,51 +1118,54 @@ function sc_handle_edit_community() {
+     if (empty($community_id) || !sc_user_can_edit_community($community_id)) {
+         sc_log_error('Unauthorized edit attempt', array(
+             'user_id' => get_current_user_id(),
+             'community_id' => $community_id
+         ));
+         wp_die(__('Permission denied', 'science-communities'));
+     }
+ 
+     $data = array(
+         'community_id' => $community_id,
+         'name' => sanitize_text_field($_POST['name']),
+         'shortdescription' => sanitize_textarea_field($_POST['shortdescription']),
+         'description' => wp_kses_post($_POST['description']),
+         'webpage' => esc_url_raw($_POST['webpage']),
+         'facebook' => esc_url_raw($_POST['facebook']),
+         'instagram' => esc_url_raw($_POST['instagram']),
+         'tiktok' => esc_url_raw($_POST['tiktok']),
+         'discord' => esc_url_raw($_POST['discord']),
+         'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
+         'logo' => esc_url_raw($_POST['logo']),
+         'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
+         'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
+         'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
+         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
+         'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
+-        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
++        'tags' => array_merge(
++            isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
++            isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
++        ),
+         'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
+         'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
+         'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
+     );
+ 
+     $result = sc_save_community($data);
+     
+     $redirect_url = add_query_arg(
+         array('action' => 'edit', 'id' => $community_id),
+         sc_get_admin_page_url()
+     );
+     
+     if ($result === true) {
+         $redirect_url = add_query_arg('updated', '1', $redirect_url);
+     } else {
+         $redirect_url = add_query_arg('error', urlencode($result), $redirect_url);
+     }
+     error_log('==== EDIT COMMUNITY REDIRECT DEBUG ====');
+     error_log('Community ID: ' . $community_id);
+     error_log('Save result: ' . print_r($result, true));
+     error_log('Redirect URL: ' . $redirect_url);
+     error_log('Headers already sent: ' . (headers_sent($file, $line) ? "YES at $file:$line" : 'NO'));
+     wp_redirect($redirect_url);
+     error_log('wp_redirect called');
+     exit;
+diff --git a/Package-build.sh b/Package-build.sh
+index e13d230ab7e1ce46091b2054efffd8de266fd6e9..6b76801b77858b83e2d5747a6394179f473313ec 100644
+--- a/Package-build.sh
++++ b/Package-build.sh
+@@ -1,63 +1,63 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ PLUGIN_MAIN="$ROOT_DIR/PKN-backend.php"
+ BUILDS_DIR="$ROOT_DIR/builds"
+ DIST_DIR="$ROOT_DIR/.dist"
+ 
+ mkdir -p "$BUILDS_DIR" "$DIST_DIR"
+ 
+ VERSION=$(sed -n 's/^ \* Version: //p' "$PLUGIN_MAIN" | head -n1 | tr -d '\r')
+ if [[ -z "$VERSION" ]]; then
+   echo "Unable to parse plugin version from $PLUGIN_MAIN" >&2
+   exit 1
+ fi
+ 
+ DATE_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+ SAFE_VERSION="$(echo "$VERSION" | tr " /" "-_")"
+ ZIP_NAME="pkn-backend-${SAFE_VERSION}.zip"
+ ZIP_PATH="$BUILDS_DIR/$ZIP_NAME"
+ 
+ rm -f "$ZIP_PATH"
+ 
+-rsync -a --delete \
+-  --exclude '.git' \
+-  --exclude '.dist' \
+-  --exclude 'builds' \
+-  --exclude 'Package-build.sh' \
+-  --exclude 'build.ps1' \
+-  --exclude 'overwiew v2.txt' \
+-  --exclude 'overview v2.txt' \
+-  --exclude '.gitignore' \
+-  --exclude '..test' \
+-  --exclude '.ignore' \
+-  --exclude '.vs' \
+-  --exclude '.vscode' \
+-  --exclude '*.zip' \
+-  "$ROOT_DIR/" "$DIST_DIR/pkn-backend/"
++DEST_DIR="$DIST_DIR/pkn-backend"
++rm -rf "$DEST_DIR"
++mkdir -p "$DEST_DIR"
++
++cp "$PLUGIN_MAIN" "$DEST_DIR/PKN-backend.php"
++for folder in templates lang includes assets; do
++  if [[ -d "$ROOT_DIR/$folder" ]]; then
++    cp -R "$ROOT_DIR/$folder" "$DEST_DIR/$folder"
++  else
++    echo "WARNING: Folder not found, skipping: $folder" >&2
++  fi
++done
++
++find "$DEST_DIR" -type d \( -name '.vs' -o -name '.vscode' \) -prune -exec rm -rf {} +
++find "$DEST_DIR" -type f \( -name '*.slnx' -o -name '*.suo' -o -name '*.user' -o -name '*.vsidx' \) -delete
+ 
+ (
+   cd "$DIST_DIR"
+   zip -qr "$ZIP_PATH" "pkn-backend"
+ )
+ 
+ cat > "$BUILDS_DIR/latest.json" <<JSON
+ {
+   "name": "PKN Backend",
+   "slug": "pkn-backend",
+   "version": "${VERSION}",
+   "built_at": "${DATE_UTC}",
+   "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/${ZIP_NAME}",
+   "details_url": "https://github.com/JIFO0/PKN",
+   "requires_wp": "6.0",
+   "requires_php": "7.4",
+   "tested": "6.5",
+   "description": "Automated build from GitHub builds folder.",
+   "changelog": "See commit history for details."
+ }
+ JSON
+ 
+ echo "Build created: $ZIP_PATH"
+ echo "Manifest updated: $BUILDS_DIR/latest.json"
+ if [[ "${SC_CREATE_GITHUB_RELEASE:-0}" == "1" ]]; then
+diff --git a/assets/css/search.css b/assets/css/search.css
+index 34a10ee8d60ebb2df08655e92c26873fc635f2a8..0bc759ab27a96819bb022b859691412c39e62f8e 100644
+--- a/assets/css/search.css
++++ b/assets/css/search.css
+@@ -630,26 +630,49 @@
+     position: relative;
+ }
+ 
+ .sc-tags-collapsible:not(.is-expanded):not(.is-searching)::after {
+     content: "";
+     position: absolute;
+     left: 0;
+     right: 0;
+     bottom: 0;
+     height: 64px;
+     pointer-events: none;
+     background: linear-gradient(rgba(255,255,255,0), var(--ug-white));
+ }
+ 
+ .sc-tags-collapsible.is-expanded,
+ .sc-tags-collapsible.is-searching {
+     max-height: none;
+     overflow: visible;
+ }
+ 
+ .sc-applications-badge {
+     border-left-color: var(--ug-success);
+ }
+ .sc-home-request-text {
+     padding-bottom: 20px;
+-}
+\ No newline at end of file
++}
++/* Keep CTA-style links from clipping on narrow/mobile layouts. */
++.sc-home-card .sc-search-button {
++    display: inline-flex;
++    align-items: center;
++    justify-content: center;
++    text-align: center;
++    max-width: 100%;
++    white-space: normal;
++    line-height: 1.25;
++    box-sizing: border-box;
++    text-decoration: none;
++}
++
++@media (max-width: 480px) {
++    .sc-home-card .sc-search-button {
++        display: flex;
++        width: fit-content;
++        min-width: min(220px, 100%);
++        margin: 0 auto;
++        padding: 12px 18px;
++        overflow-wrap: anywhere;
++    }
++}
+diff --git a/assets/js/admin-script.js b/assets/js/admin-script.js
+index 1f871a917eaeae5446bd825b69ea0663cc7ce257..42904885816d5423a25bd6d9174edacc060f446e 100644
+--- a/assets/js/admin-script.js
++++ b/assets/js/admin-script.js
+@@ -171,34 +171,34 @@ jQuery(document).ready(function($) {
+                 $bar.css('width', percent + '%');
+                 uploadSingle(index + 1);
+             });
+         }
+ 
+         uploadSingle(0);
+         $(this).val('');
+     });
+ });
+ 
+     $('#sc-pull-facebook').on('click', function() {
+         if (typeof scienceCommunitiesData === 'undefined') return;
+         var communityId = $(this).data('community-id');
+         var facebook = $('#sc-facebook').val();
+         var $status = $('#sc-facebook-pull-status');
+         $status.text('Fetching data from Facebook...');
+ 
+         $.post(scienceCommunitiesData.ajaxUrl, {
+             action: 'sc_pull_facebook_data',
+             nonce: scienceCommunitiesData.nonce,
+             community_id: communityId,
+             facebook: facebook
+         }).done(function(response) {
+             if (response.success) {
+                 var d = response.data.data || {};
+-                if (d.picture_url) { $('#sc-logo').val(d.picture_url); updateLogoPreview(d.picture_url); }
++                if (d.picture_url && !$('#sc-logo').val()) { $('#sc-logo').val(d.picture_url); updateLogoPreview(d.picture_url); }
+                 if (d.about && !$('#sc-shortdescription').val()) { $('#sc-shortdescription').val(d.about); }
+                 if (d.description && !$('#sc-description').val()) { $('#sc-description').val(d.description); }
+-                $status.text('Facebook data fetched. Save the form to persist changes.');
++                $status.text(response.data.message || 'Facebook data fetched. Existing filled fields were skipped.');
+             } else {
+                 $status.text(response.data || 'Could not fetch Facebook data.');
+             }
+         }).fail(function() { $status.text('Request failed. Please try again later.'); });
+     });
+diff --git a/build.ps1 b/build.ps1
+index a0f448dcf350fd8ce976715f5ad15d87ca4db630..731f01222752e6c61e0afa134300f81b37864d23 100644
+--- a/build.ps1
++++ b/build.ps1
+@@ -1,26 +1,26 @@
+-﻿#BUILDER VERSION 2.11
++#BUILDER VERSION 2.11
+ 
+ #Requires -Version 5.1
+ Set-StrictMode -Version Latest
+ $ErrorActionPreference = 'Stop'
+  
+ # Always pause before exit so the window stays open
+ function Exit-Script([int]$Code = 0) {
+     Write-Host ""
+     Write-Host "Press any key to close..."
+     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+     exit $Code
+ 	
+ }
+ 
+ function Ensure-GhConfigured {
+     # Check gh is installed
+     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+         Write-Host ""
+         Write-Host "GitHub CLI (gh) is not installed." -ForegroundColor Yellow
+         Write-Host "Download it from: https://cli.github.com/" -ForegroundColor Cyan
+         Write-Host "After installing, re-run this script."
+         Exit-Script 1
+     }
+ 
+     # Check if authenticated
+@@ -104,64 +104,69 @@ if (Test-Path $CurrentZip) {
+     if (Test-Path $OldManifest) {
+         $OldVersion = (Get-Content $OldManifest | ConvertFrom-Json).version
+         $OldZipName = "pkn-backend-$($OldVersion -replace '[\s/\\]','-').zip"
+     } else {
+         $OldZipName = "pkn-backend-unknown-$(Get-Date -Format 'yyyyMMdd-HHmmss').zip"
+     }
+ 
+     $OldZipDest = Join-Path $OldDir $OldZipName
+     if (-not (Test-Path $OldZipDest)) {
+         Move-Item -Path $CurrentZip -Destination $OldZipDest
+         Write-Host "Archived previous build: $OldZipDest" -ForegroundColor DarkGray
+     } else {
+         Remove-Item $CurrentZip -Force
+         Write-Host "Old version already archived, removed duplicate." -ForegroundColor DarkGray
+     }
+ }
+ 
+ # Stage the exact files/folders that belong in the plugin zip
+ $DestDir = Join-Path $DistDir "pkn-backend"
+ if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
+ New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+ 
+ # Copy main plugin file
+ Copy-Item -Path $PluginMain -Destination (Join-Path $DestDir "PKN-backend.php") -Force
+ 
+-# Copy plugin folders
++# Copy plugin folders, excluding nested IDE/build artifacts that can corrupt plugin zips.
+ foreach ($folder in @('templates', 'lang', 'includes', 'assets')) {
+     $src = Join-Path $RootDir $folder
+     if (Test-Path $src) {
+         Copy-Item -Path $src -Destination (Join-Path $DestDir $folder) -Recurse -Force
+     } else {
+         Write-Host "WARNING: Folder not found, skipping: $folder" -ForegroundColor Yellow
+     }
+ }
++Get-ChildItem -Path $DestDir -Directory -Recurse -Force -Filter '.vs' | Remove-Item -Recurse -Force
++Get-ChildItem -Path $DestDir -Directory -Recurse -Force -Filter '.vscode' | Remove-Item -Recurse -Force
++Get-ChildItem -Path $DestDir -File -Recurse -Force -Include '*.slnx','*.suo','*.user','*.vsidx' | Remove-Item -Force
+ 
+-# Create zip — always named PKN.zip
++# Create zip — always named PKN.zip and containing the pkn-backend folder at its root.
++# WordPress updates are most reliable when the archive root is the plugin directory,
++# not loose files from inside that directory.
+ $ZipPath = Join-Path $BuildsDir "PKN.zip"
+ Write-Host "Compressing..."
+-Compress-Archive -Path (Join-Path $DestDir '*') -DestinationPath $ZipPath -Force
++Compress-Archive -Path $DestDir -DestinationPath $ZipPath -Force
+  
+ # Write latest.json manifest
+ $Manifest = @"
+ {
+   "name": "PKN Backend",
+   "slug": "pkn-backend",
+   "version": "$Version",
+   "built_at": "$DateUtc",
+   "package_url": "https://github.com/JIFO0/PKN/raw/main/builds/PKN.zip",
+   "details_url": "https://github.com/JIFO0/PKN",
+   "requires_wp": "6.0",
+   "requires_php": "7.4",
+   "tested": "6.5",
+   "description": "Automated build from GitHub builds folder.",
+   "changelog": "See commit history for details."
+ }
+ "@
+  
+ $ManifestPath = Join-Path $BuildsDir "latest.json"
+ $Manifest | Set-Content -Path $ManifestPath -Encoding UTF8
+  
+ Write-Host ""
+ Write-Host "Build created   : $ZipPath" -ForegroundColor Green
+ Write-Host "Manifest updated: $ManifestPath" -ForegroundColor Green
+  
+diff --git a/includes/admin-functions.php b/includes/admin-functions.php
+index e7c678207a881c50bfec65bf45d6c7a5d55daff8..8baf85075a0c76f886ccd81a27bbe66a83747853 100644
+--- a/includes/admin-functions.php
++++ b/includes/admin-functions.php
+@@ -861,51 +861,54 @@ function sc_import_from_excel($file_path, $args = array()) {
+                 $imported_count++;
+                 
+                 // Register admin role
+                 sc_register_community_admin_role($new_id);
+             }
+         }
+         
+         // Handle tags
+         if (!empty($community_id) && !empty($data['tags'])) {
+             $tags = sc_parse_import_tags($data['tags']);
+             sc_update_community_tags($community_id, $tags);
+         }
+     }
+     
+     fclose($handle);
+     sc_import_log(sprintf('Import finished. Processed: %d, created: %d, updated: %d, skipped(no name): %d, skipped(id 0): %d', $processed_rows, $imported_count, $updated_count, $skipped_missing_name, $skipped_zero_id));
+ 
+     sc_record_update_history(array(
+         'actor_name' => $args['actor_name'] ?? '',
+         'action' => 'import',
+         'filename' => $args['filename'] ?? basename((string) $file_path),
+         'communities_created' => $imported_count,
+         'communities_updated' => $updated_count,
+         'communities_deleted' => 0,
+         'communities_skipped' => $skipped_count,
+-        'notes' => sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id),
++        'notes' => trim((string) ($args['upload_info'] ?? '')) !== ''
++            ? trim((string) ($args['upload_info'] ?? '')) . "
++" . sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id)
++            : sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id),
+     ));
+     
+     return array('success' => true, 'count' => $imported_count, 'created' => $imported_count, 'updated' => $updated_count, 'deleted' => 0, 'skipped' => $skipped_count);
+ }
+ 
+ /**
+  * Display community admins table
+  */
+ function sc_display_community_admins_table() {
+     global $wpdb;
+     $communities_table = $wpdb->prefix . 'science_communities';
+     
+     // Get all communities
+     $communities = $wpdb->get_results("SELECT community_id, name FROM $communities_table ORDER BY name ASC");
+     
+     echo '<table class="wp-list-table widefat fixed striped">';
+     echo '<thead><tr>';
+     echo '<th>' . __('Community', 'science-communities') . '</th>';
+     echo '<th>' . __('Administrators', 'science-communities') . '</th>';
+     echo '</tr></thead>';
+     echo '<tbody>';
+     
+     foreach ($communities as $community) {
+         $role_name = $community->community_id . '-admin';
+         $admins = get_users(array('role__in' => array($role_name)));
+diff --git a/includes/functions.php b/includes/functions.php
+index ffcfc0bac576903d44eeb44a3940bdad952d9ee9..02b1f4458df9d83f539c81a8848f4e73ab131834 100644
+--- a/includes/functions.php
++++ b/includes/functions.php
+@@ -88,51 +88,51 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
+                 $where[] = $wpdb->prepare(
+                     "c.community_id IN ($placeholders)",
+                     $fuzzy_matches
+                 );
+             } else {
+                 // No matches found
+                 $where[] = "1=0";
+             }
+         } else {
+             // Standard search without fuzzy matching
+             $search_like = '%' . $wpdb->esc_like($search_term) . '%';
+             $where[] = $wpdb->prepare("(c.name LIKE %s OR c.shortdescription LIKE %s OR c.description LIKE %s)", $search_like, $search_like, $search_like);
+         }
+     }
+     
+     // Add tag filtering if tags are provided
+     if (!empty($tags)) {
+         $join .= " INNER JOIN $relationships_table AS r ON c.community_id = r.community_id";
+         $join .= " INNER JOIN $tags_table AS t ON r.tag_id = t.id";
+         
+         $tag_conditions = array();
+         
+         // Handle numeric tag IDs or tag names
+         $tags = sc_normalize_tags_input($tags);
+ 
+-    foreach ($tags as $tag) {
++        foreach ($tags as $tag) {
+             if (is_numeric($tag)) {
+                 $tag_conditions[] = $wpdb->prepare("t.id = %d", $tag);
+             } else {
+                 $tag_conditions[] = $wpdb->prepare("t.tag_name = %s", $tag);
+             }
+         }
+         
+         // If we have multiple tags, ensure communities have ALL selected tags
+         if (count($tag_conditions) > 1) {
+             $tag_count = count($tag_conditions);
+             $tag_condition_sql = implode(' OR ', $tag_conditions);
+             
+             $where[] = $wpdb->prepare(
+                 "c.community_id IN (
+                     SELECT r1.community_id 
+                     FROM $relationships_table AS r1
+                     INNER JOIN $tags_table AS t1 ON r1.tag_id = t1.id
+                     WHERE $tag_condition_sql
+                     GROUP BY r1.community_id
+                     HAVING COUNT(DISTINCT t1.id) = %d
+                 )",
+                 $tag_count
+             );
+             
+             // Remove the earlier join since we're using a subquery
+@@ -344,58 +344,77 @@ function sc_get_community($community_id) {
+ function sc_get_community_tags($community_id) {
+     global $wpdb;
+     
+     $tags_table = $wpdb->prefix . 'science_tags';
+     $relationships_table = $wpdb->prefix . 'science_community_tags';
+     
+     $query = $wpdb->prepare(
+         "SELECT t.id, t.tag_name 
+         FROM $tags_table AS t
+         INNER JOIN $relationships_table AS r ON t.id = r.tag_id
+         WHERE r.community_id = %s
+         ORDER BY t.tag_name ASC",
+         $community_id
+     );
+     
+     return $wpdb->get_results($query);
+ }
+ 
+ /**
+  * Get all available tags
+  * 
+  * @return array Array of all tag objects
+  */
+ function sc_get_all_tags() {
+     global $wpdb;
+-    
++
++    if (function_exists('sc_cleanup_orphan_tags')) {
++        sc_cleanup_orphan_tags();
++    }
++
+     $tags_table = $wpdb->prefix . 'science_tags';
+-    
+-    $query = "SELECT id, tag_name FROM $tags_table ORDER BY tag_name ASC";
+-    
++    $relationships_table = $wpdb->prefix . 'science_community_tags';
++
++    $query = "SELECT DISTINCT t.id, t.tag_name
++        FROM $tags_table AS t
++        INNER JOIN $relationships_table AS r ON t.id = r.tag_id
++        ORDER BY t.tag_name ASC";
++
+     return $wpdb->get_results($query);
+ }
+ 
++function sc_cleanup_orphan_tags() {
++    global $wpdb;
++
++    $tags_table = $wpdb->prefix . 'science_tags';
++    $relationships_table = $wpdb->prefix . 'science_community_tags';
++    $communities_table = $wpdb->prefix . 'science_communities';
++
++    $wpdb->query("DELETE r FROM $relationships_table AS r LEFT JOIN $communities_table AS c ON r.community_id = c.community_id WHERE c.community_id IS NULL");
++    return (int) $wpdb->query("DELETE t FROM $tags_table AS t LEFT JOIN $relationships_table AS r ON t.id = r.tag_id WHERE r.tag_id IS NULL");
++}
++
+ /**
+  * Generate a random 5-character community ID
+  * 
+  * @return string A unique 5-character ID
+  */
+ function sc_generate_community_id() {
+     global $wpdb;
+     
+     $communities_table = $wpdb->prefix . 'science_communities';
+     $characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+     $char_length = strlen($characters) - 1;
+     
+     // Try up to 10 times to generate a unique ID
+     for ($attempt = 0; $attempt < 10; $attempt++) {
+         $id = '';
+         
+         // Generate a random 5-character string
+         for ($i = 0; $i < 5; $i++) {
+             $id .= $characters[mt_rand(0, $char_length)];
+         }
+         
+         // Check if this ID already exists
+         $exists = $wpdb->get_var($wpdb->prepare(
+             "SELECT COUNT(*) FROM $communities_table WHERE community_id = %s",
+             $id
+@@ -541,122 +560,128 @@ function sc_normalize_tags_input($tags) {
+         }
+     }
+ 
+     return array_values(array_unique($normalized));
+ }
+ 
+ /**
+  * Update tags for a community
+  * 
+  * @param string $community_id The community ID
+  * @param array $tags Array of tag IDs or tag names
+  * @return bool True on success
+  */
+ function sc_update_community_tags($community_id, $tags) {
+     global $wpdb;
+     
+     $tags_table = $wpdb->prefix . 'science_tags';
+     $relationships_table = $wpdb->prefix . 'science_community_tags';
+ 
+     $wpdb->delete(
+         $relationships_table,
+         array('community_id' => $community_id)
+     );
+     
+     $tags = sc_normalize_tags_input($tags);
++    $used_tag_ids = array();
+ 
+     foreach ($tags as $tag) {
+         $tag_id = null;
+         
+         // If the tag is numeric, treat it as a tag ID
+         if (is_numeric($tag)) {
+             $tag_id = intval($tag);
+             
+             // Verify the tag exists
+             $exists = $wpdb->get_var($wpdb->prepare(
+                 "SELECT COUNT(*) FROM $tags_table WHERE id = %d",
+                 $tag_id
+             ));
+             
+             if ($exists == 0) {
+                 continue; // Skip if tag doesn't exist
+             }
+         } else {
+             // Otherwise, treat it as a tag name
+             $tag_name = sanitize_text_field($tag);
+             
+             // Check if the tag already exists
+             $existing_tag = $wpdb->get_var($wpdb->prepare(
+                 "SELECT id FROM $tags_table WHERE tag_name = %s",
+                 $tag_name
+             ));
+             
+             if ($existing_tag) {
+                 $tag_id = $existing_tag;
+             } else {
+                 // Create the tag if it doesn't exist
+                 $wpdb->insert(
+                     $tags_table,
+                     array('tag_name' => $tag_name)
+                 );
+                 
+                 $tag_id = $wpdb->insert_id;
+             }
+         }
+         
+         // Add the relationship
+-        if ($tag_id) {
++        if ($tag_id && !in_array((int) $tag_id, $used_tag_ids, true)) {
+             $wpdb->insert(
+                 $relationships_table,
+                 array(
+                     'community_id' => $community_id,
+                     'tag_id' => $tag_id
+                 )
+             );
++            $used_tag_ids[] = (int) $tag_id;
+         }
+     }
+-    
++
++    sc_cleanup_orphan_tags();
++
+     return true;
+ }
+ 
+ /**
+  * Delete a community
+  * 
+  * @param string $community_id The community ID
+  * @return bool True on success, false on failure
+  */
+ function sc_delete_community($community_id) {
+     global $wpdb;
+-    
++
+     $communities_table = $wpdb->prefix . 'science_communities';
+-    
+-    // Delete the community (relationships will be deleted via foreign key constraints)
++    $relationships_table = $wpdb->prefix . 'science_community_tags';
++
++    $wpdb->delete($relationships_table, array('community_id' => $community_id));
+     $result = $wpdb->delete(
+         $communities_table,
+         array('community_id' => $community_id)
+     );
+-    
++    sc_cleanup_orphan_tags();
++
+     return $result !== false;
+ }
+ 
+ /**
+  * Format a community for display
+  * 
+  * @param object $community The community object
+  * @return array Formatted community array
+  */
+ function sc_format_community_for_display($community) {
+     if (!$community) {
+         return null;
+     }
+     
+     return array(
+         'id' => $community->community_id,
+         'name' => $community->name,
+         'shortdescription' => $community->shortdescription,
+         'description' => $community->description,
+         'webpage' => $community->webpage,
+         'facebook' => $community->facebook,
+         'instagram' => $community->instagram,
+         'tiktok' => $community->tiktok,
+         'discord' => $community->discord,
+         'logo' => $community->logo,
+@@ -751,53 +776,56 @@ add_action('wp_ajax_sc_import_communities', function() {
+     check_ajax_referer('sc_import_excel', 'sc_import_nonce');
+     
+     if (!sc_is_superadmin()) {
+         wp_send_json_error(['message' => __('Unauthorized', 'science-communities')]);
+     }
+ 
+     if (!isset($_FILES['excel_file'])) {
+         wp_send_json_error(['message' => __('No file uploaded.', 'science-communities')]);
+     }
+ 
+     $importer_name = isset($_POST['importer_name']) ? sanitize_text_field(wp_unslash($_POST['importer_name'])) : '';
+     if ($importer_name === '') {
+         wp_send_json_error(['message' => __('Please enter your name before importing.', 'science-communities')]);
+     }
+ 
+     require_once(ABSPATH . 'wp-admin/includes/file.php');
+     $movefile = wp_handle_upload($_FILES['excel_file'], ['test_form' => false, 'test_type' => false]);
+ 
+     if (!$movefile || isset($movefile['error'])) {
+         wp_send_json_error(['message' => $movefile['error'] ?? __('Upload failed.', 'science-communities')]);
+     }
+ 
+     // Give it time to finish large files
+     set_time_limit(120);
+ 
++    $upload_info = isset($_POST['upload_info']) ? sanitize_textarea_field(wp_unslash($_POST['upload_info'])) : '';
++
+     $imported = sc_import_from_excel($movefile['file'], [
+         'actor_name' => $importer_name,
+         'filename' => basename($_FILES['excel_file']['name'] ?? $movefile['file']),
++        'upload_info' => $upload_info,
+     ]);
+     @unlink($movefile['file']);
+ 
+     if ($imported['success']) {
+         wp_send_json_success([
+             'message' => sprintf(__('Import completed. Created: %1$d, updated: %2$d, skipped: %3$d.', 'science-communities'), (int) $imported['created'], (int) $imported['updated'], (int) $imported['skipped'])
+         ]);
+     } else {
+         wp_send_json_error(['message' => $imported['message']]);
+     }
+ });
+ add_action('admin_footer', function() {
+     $screen = get_current_screen();
+     // Only load on your import page
+     if (!$screen || strpos($screen->id, 'pkn-import') === false) return;
+     if (!sc_is_superadmin()) return;
+     ?>
+     <style>
+     #sc-import-overlay {
+         display: none;
+         position: fixed;
+         inset: 0;
+         background: rgba(0,0,0,0.5);
+         z-index: 99999;
+         flex-direction: column;
+diff --git a/includes/updater.php b/includes/updater.php
+index 50b93301bb20627e700396b552cd04e652cf393d..d1c7567f4ced340d6eea4999ee85e9f81e332466 100644
+--- a/includes/updater.php
++++ b/includes/updater.php
+@@ -131,62 +131,84 @@ function sc_normalize_release_version($release) {
+     }
+ 
+     return $raw_version;
+ }
+ 
+ function sc_find_installed_plugin_dir($directory) {
+     $directory = trailingslashit($directory);
+     $main_file = $directory . 'PKN-backend.php';
+     if (file_exists($main_file)) {
+         return $directory;
+     }
+ 
+     $candidates = glob($directory . '*/PKN-backend.php');
+     if (!empty($candidates)) {
+         return trailingslashit(dirname($candidates[0]));
+     }
+ 
+     return $directory;
+ }
+ 
+ function sc_after_plugin_install($response, $hook_extra, $result) {
+     global $wp_filesystem;
+ 
+     $plugin_dir = WP_PLUGIN_DIR . '/pkn-backend';
+ 
+-    if (!empty($result['destination'])) {
+-        $source_dir = sc_find_installed_plugin_dir($result['destination']);
++    if (empty($result['destination'])) {
++        return $result;
++    }
+ 
+-        if ($source_dir !== trailingslashit($plugin_dir)) {
+-            if ($wp_filesystem->exists($plugin_dir)) {
+-                $wp_filesystem->delete($plugin_dir, true);
+-            }
+-            $wp_filesystem->move($source_dir, $plugin_dir);
++    $source_dir = sc_find_installed_plugin_dir($result['destination']);
++    $source_main = trailingslashit($source_dir) . 'PKN-backend.php';
++
++    if (!$wp_filesystem->exists($source_main)) {
++        return new WP_Error(
++            'sc_update_missing_main_file',
++            __('PKN update package is invalid: PKN-backend.php was not found at the archive root or inside the pkn-backend folder.', 'pkn-backend')
++        );
++    }
++
++    $headers = get_file_data($source_main, array('Plugin Name' => 'Plugin Name', 'Version' => 'Version'));
++    if (empty($headers['Plugin Name']) || empty($headers['Version'])) {
++        return new WP_Error(
++            'sc_update_invalid_headers',
++            __('PKN update package is invalid: the main plugin file has missing or invalid plugin headers.', 'pkn-backend')
++        );
++    }
++
++    if (trailingslashit($source_dir) !== trailingslashit($plugin_dir)) {
++        if ($wp_filesystem->exists($plugin_dir)) {
++            $wp_filesystem->delete($plugin_dir, true);
++        }
++        if (!$wp_filesystem->move($source_dir, $plugin_dir)) {
++            return new WP_Error('sc_update_move_failed', __('Could not move the PKN update into the plugin directory.', 'pkn-backend'));
+         }
+-        $result['destination'] = $plugin_dir;
+     }
+ 
++    $result['destination'] = $plugin_dir;
++    $result['destination_name'] = 'pkn-backend';
++
+     return $result;
+ }
+ 
+ function sc_fetch_update_manifest($force_refresh = false) {
+     $cache_key = 'sc_updater_manifest_cache';
+     if ($force_refresh) {
+         delete_transient($cache_key);
+     }
+ 
+     $cached = get_transient($cache_key);
+     if (is_array($cached)) {
+         return $cached;
+     }
+ 
+     $response = wp_remote_get(SC_UPDATER_RELEASE_API_URL, array(
+         'timeout' => 20,
+         'headers' => array('Accept' => 'application/vnd.github+json', 'User-Agent' => 'PKN-Updater')
+     ));
+ 
+     if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+         return array();
+     }
+ 
+     $release = json_decode(wp_remote_retrieve_body($response), true);
+     if (!is_array($release)) {
+diff --git a/templates/add-community.php b/templates/add-community.php
+index b31d235672d28081a6f97a526806242bddd408d3..ebb40a0f5023a657dfbc8924f5803d13118cb4fa 100644
+--- a/templates/add-community.php
++++ b/templates/add-community.php
+@@ -1,26 +1,26 @@
+-﻿<?php
++<?php
+ /**
+  * Template for adding a new science community
+  *
+  * Allows superadmins to create new communities.
+  */
+ 
+ // Exit if accessed directly
+ if (!defined('ABSPATH')) {
+     exit;
+ }
+ 
+ // Check if user is logged in and is superadmin
+ if (!is_user_logged_in() || !sc_is_superadmin()) {
+     echo '<p>' . __('You do not have permission to add communities.', 'science-communities') . '</p>';
+     return;
+ }
+ 
+ // Single source of truth: form submits to admin-post.php handler only
+ // No POST processing here - all handled in PKN-backend.php sc_handle_add_community()
+ $success_message = '';
+ $error_message = '';
+ 
+ // Form action points to WordPress admin-post endpoint
+ $form_action = admin_url('admin-post.php');
+ 
+@@ -114,50 +114,52 @@ $all_tags = sc_get_all_tags();
+                 <p class="description">
+                     <?php echo esc_html__('Or upload a logo (PNG, JPG, JPEG, WebP - Max 2MB, 2048x2048px)', 'science-communities'); ?>
+                 </p>
+                 <label for="sc-logo-upload" class="sc-upload-button">
+                     <?php echo esc_html__('Choose File', 'science-communities'); ?>
+                 </label>
+                 <input type="file" id="sc-logo-upload" accept=".png,.jpg,.jpeg,.webp" style="display:none;">
+         
+                 <div class="sc-upload-progress" style="display:none;">
+                     <div class="sc-progress-bar"></div>
+                 </div>
+                 <div class="sc-upload-message"></div>
+             </div>
+         </div>
+ 
+         <div class="sc-form-group">
+             <label><?php echo esc_html__('Tags', 'science-communities'); ?></label>
+             <div class="sc-tags-selector">
+                 <?php foreach ($all_tags as $tag): ?>
+                     <label class="sc-tag-item">
+                         <input type="checkbox" name="tags[]" value="<?php echo esc_attr($tag->tag_name); ?>">
+                         <span class="sc-tag-name"><?php echo esc_html($tag->tag_name); ?></span>
+                     </label>
+                 <?php endforeach; ?>
+             </div>
++            <input type="text" name="new_tags" class="regular-text" placeholder="<?php echo esc_attr__('Add new tags, separated by commas', 'science-communities'); ?>">
++            <p class="description"><?php echo esc_html__('New tags are saved only when this community uses them, so unused tags are not kept.', 'science-communities'); ?></p>
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-gallery-images"><?php echo esc_html__('Community Gallery (one URL per line)', 'science-communities'); ?></label>
+             <textarea id="sc-gallery-images" name="gallery_images" rows="6"></textarea>
+             <div class="sc-logo-upload sc-gallery-upload">
+                 <label for="sc-gallery-upload" class="sc-upload-button">
+                     <?php echo esc_html__('Upload Gallery Images', 'science-communities'); ?>
+                 </label>
+                 <input type="file" id="sc-gallery-upload" accept=".png,.jpg,.jpeg,.webp" multiple style="display:none;">
+                 <div class="sc-upload-info"><?php echo esc_html__('Select multiple images; uploaded links are added automatically.', 'science-communities'); ?></div>
+                 <div class="sc-upload-progress sc-gallery-progress" style="display:none;">
+                     <div class="sc-progress-bar"></div>
+                 </div>
+                 <div class="sc-upload-message sc-gallery-upload-message"></div>
+             </div>
+         </div>
+ 
+         <div class="sc-form-actions">
+             <button type="submit" class="sc-submit-button">
+                 <?php echo esc_html__('Create Community', 'science-communities'); ?>
+             </button>
+             <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
+                 <?php echo esc_html__('Cancel', 'science-communities'); ?>
+             </a>
+diff --git a/templates/admin-import.php b/templates/admin-import.php
+index 4610fecb8beeb98e4cee5b91b782b2f7f8f62e2d..6baa7164ce50c44919b082977c052967420e0adb 100644
+--- a/templates/admin-import.php
++++ b/templates/admin-import.php
+@@ -37,50 +37,57 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
+     </div>
+ 
+     <div class="card" style="max-width: 800px; margin-top: 20px;">
+         <h2><?php _e('Upload Excel File', 'science-communities'); ?></h2>
+         
+         <form method="post" enctype="multipart/form-data" id="sc-import-form">
+             <?php wp_nonce_field('sc_import_excel', 'sc_import_nonce'); ?>
+             
+             <table class="form-table">
+                 <tr>
+                     <th><label for="importer_name"><?php _e('Your name', 'science-communities'); ?></label></th>
+                     <td>
+                         <input type="text" name="importer_name" id="importer_name" class="regular-text" required>
+                         <p class="description"><?php _e('This name will be saved in the update history for this import.', 'science-communities'); ?></p>
+                     </td>
+                 </tr>
+                 <tr>
+                     <th><label for="excel_file"><?php _e('Excel File', 'science-communities'); ?></label></th>
+                     <td>
+                         <input type="file" name="excel_file" id="excel_file" accept=".csv,.xlsx,.xls" required>
+                         <p class="description">
+                             <?php _e('Upload a CSV or Excel file (recommended: CSV with | delimiter and UTF-8). The file should have the following columns:', 'science-communities'); ?>
+                         </p>
+                     </td>
+                 </tr>
++                <tr>
++                    <th><label for="upload_info"><?php _e('Upload info', 'science-communities'); ?></label></th>
++                    <td>
++                        <textarea name="upload_info" id="upload_info" class="large-text" rows="3" placeholder="<?php esc_attr_e('Optional notes about this upload, data source, or reason for importing.', 'science-communities'); ?>"></textarea>
++                        <p class="description"><?php _e('Saved in update history together with the import summary.', 'science-communities'); ?></p>
++                    </td>
++                </tr>
+             </table>
+             
+             <p class="submit">
+                 <input type="submit" name="submit" class="button button-primary" value="<?php esc_attr_e('Import Communities', 'science-communities'); ?>">
+             </p>
+         </form>
+     </div>
+     
+     <div class="card" style="max-width: 800px; margin-top: 20px;">
+         <h2><?php _e('Required Excel Format', 'science-communities'); ?></h2>
+         
+         <p><?php _e('Your Excel file should have these columns (first row as headers):', 'science-communities'); ?></p>
+         
+         <table class="wp-list-table widefat fixed striped">
+             <thead>
+                 <tr>
+                     <th><?php _e('Column Name', 'science-communities'); ?></th>
+                     <th><?php _e('Required', 'science-communities'); ?></th>
+                     <th><?php _e('Description', 'science-communities'); ?></th>
+                 </tr>
+             </thead>
+             <tbody>
+                 <?php
+                 $columns = array(
+                     array('community_id', __('Yes', 'science-communities'), __('Five-character community ID. Rows with community_id equal to 0 are not imported.', 'science-communities')),
+@@ -111,66 +118,68 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
+         
+         <p style="margin-top: 20px;">
+             <strong><?php _e('Note:', 'science-communities'); ?></strong>
+             <?php _e('If a community with the same community_id already exists, it will be updated. Legacy files without community_id are matched by name.', 'science-communities'); ?>
+         </p>
+     </div>
+ 
+     <div class="card" style="max-width: 1000px; margin-top: 20px;">
+         <h2><?php _e('Update history', 'science-communities'); ?></h2>
+         <?php
+         global $wpdb;
+         $history_table = $wpdb->prefix . 'science_communities_update_history';
+         $history_entries = $wpdb->get_results("SELECT * FROM $history_table ORDER BY created_at DESC LIMIT 25", ARRAY_A);
+         ?>
+         <table class="wp-list-table widefat fixed striped">
+             <thead>
+                 <tr>
+                     <th><?php _e('Date', 'science-communities'); ?></th>
+                     <th><?php _e('Name', 'science-communities'); ?></th>
+                     <th><?php _e('Action', 'science-communities'); ?></th>
+                     <th><?php _e('File', 'science-communities'); ?></th>
+                     <th><?php _e('Created', 'science-communities'); ?></th>
+                     <th><?php _e('Updated', 'science-communities'); ?></th>
+                     <th><?php _e('Deleted', 'science-communities'); ?></th>
+                     <th><?php _e('Skipped', 'science-communities'); ?></th>
++                    <th><?php _e('Info', 'science-communities'); ?></th>
+                 </tr>
+             </thead>
+             <tbody>
+                 <?php if (empty($history_entries)): ?>
+-                    <tr><td colspan="8"><?php _e('No update history yet.', 'science-communities'); ?></td></tr>
++                    <tr><td colspan="9"><?php _e('No update history yet.', 'science-communities'); ?></td></tr>
+                 <?php else: ?>
+                     <?php foreach ($history_entries as $entry): ?>
+                         <tr>
+                             <td><?php echo esc_html($entry['created_at']); ?></td>
+                             <td><?php echo esc_html($entry['actor_name']); ?></td>
+                             <td><?php echo esc_html($entry['action'] === 'history_cleared' ? __('History cleared', 'science-communities') : __('Import', 'science-communities')); ?></td>
+                             <td><?php echo esc_html($entry['filename']); ?></td>
+                             <td><?php echo esc_html((int) $entry['communities_created']); ?></td>
+                             <td><?php echo esc_html((int) $entry['communities_updated']); ?></td>
+                             <td><?php echo esc_html((int) $entry['communities_deleted']); ?></td>
+                             <td><?php echo esc_html((int) $entry['communities_skipped']); ?></td>
++                            <td><?php echo esc_html($entry['notes']); ?></td>
+                         </tr>
+                     <?php endforeach; ?>
+                 <?php endif; ?>
+             </tbody>
+         </table>
+         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top: 16px;">
+             <input type="hidden" name="action" value="sc_clear_update_history">
+             <?php wp_nonce_field('sc_clear_update_history', 'sc_clear_update_history_nonce'); ?>
+             <label for="history_actor_name"><strong><?php _e('Your name', 'science-communities'); ?></strong></label>
+             <input type="text" id="history_actor_name" name="history_actor_name" class="regular-text" required>
+             <button type="submit" class="button" onclick="return confirm('<?php echo esc_js(__('Clear update history? A new entry recording this action will be created.', 'science-communities')); ?>');"><?php _e('Clear update history', 'science-communities'); ?></button>
+         </form>
+     </div>
+ </div>
+ <?php
+ $upload_dir = wp_upload_dir();
+ $log_file = trailingslashit($upload_dir['basedir']) . 'sc-community-import.log';
+ if (file_exists($log_file)):
+     $log_lines = @file($log_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+     $log_lines = is_array($log_lines) ? array_slice($log_lines, -20) : array();
+ ?>
+ <div class="card" style="max-width: 800px; margin-top: 20px;">
+     <h2><?php _e('Last import log entries', 'science-communities'); ?></h2>
+     <pre style="background:#111;color:#f3f3f3;padding:12px;max-height:280px;overflow:auto;"><?php echo esc_html(implode("\n", $log_lines)); ?></pre>
+ </div>
+diff --git a/templates/admin-tags-faculties.php b/templates/admin-tags-faculties.php
+index bad40fe479b6a4ad3c676057511260a7d68bc047..e3c4a241cb75aacf83992a646fb1c91152fb8f80 100644
+--- a/templates/admin-tags-faculties.php
++++ b/templates/admin-tags-faculties.php
+@@ -1,41 +1,45 @@
+-﻿<?php
++<?php
+ /**
+  * Admin page for managing tags and faculties
+  */
+ 
+ if (!defined('ABSPATH')) exit;
+ if (!sc_is_superadmin()) {
+     echo '<p>' . __('Access denied.', 'science-communities') . '</p>';
+     return;
+ }
+ 
+ global $wpdb;
+ $tags_table = $wpdb->prefix . 'science_tags';
+ $faculties_table = $wpdb->prefix . 'science_faculties';
+ 
+-$tags = $wpdb->get_results("SELECT * FROM $tags_table ORDER BY tag_name ASC");
++if (function_exists('sc_cleanup_orphan_tags')) {
++    sc_cleanup_orphan_tags();
++}
++$rel_table = $wpdb->prefix . 'science_community_tags';
++$tags = $wpdb->get_results("SELECT DISTINCT t.* FROM $tags_table AS t INNER JOIN $rel_table AS r ON t.id = r.tag_id ORDER BY t.tag_name ASC");
+ $faculties = $wpdb->get_results("SELECT * FROM $faculties_table ORDER BY faculty_name ASC");
+ ?>
+ 
+ <div class="wrap">
+     <h1><?php _e('Manage Tags & Faculties', 'science-communities'); ?></h1>
+     
+     <div style="display: flex; gap: 20px;">
+         <div style="flex: 1;">
+             <div class="card">
+                 <h2><?php _e('Tags', 'science-communities'); ?></h2>
+                 <table class="wp-list-table widefat fixed striped">
+                     <thead>
+                         <tr>
+                             <th><?php _e('Tag Name', 'science-communities'); ?></th>
+                             <th><?php _e('Communities Using', 'science-communities'); ?></th>
+                         </tr>
+                     </thead>
+                     <tbody>
+                         <?php foreach ($tags as $tag): 
+                             $count = $wpdb->get_var($wpdb->prepare(
+                                 "SELECT COUNT(*) FROM {$wpdb->prefix}science_community_tags WHERE tag_id = %d",
+                                 $tag->id
+                             ));
+                         ?>
+                         <tr>
+diff --git a/templates/community-detail.php b/templates/community-detail.php
+index 3313cc1638ded11fcf69956d4ffe7a3e02ea39fc..2e47fbf1aa1499bf0b1df21ef49f017e21e42fe9 100644
+--- a/templates/community-detail.php
++++ b/templates/community-detail.php
+@@ -24,51 +24,51 @@ $social_icons = array(
+     'instagram' => 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/InstagramLogo.png',
+     'tiktok' => 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/TiktokLogo.png',
+ );
+ 
+ $social_preview_settings = wp_parse_args(get_option('sc_social_preview_settings', array()), array(
+     'enabled' => '1',
+     'facebook' => '1',
+     'facebook_width' => '340',
+     'facebook_height' => '500',
+ ));
+ 
+ function sc_build_social_url($community, $platform) {
+     if ($platform === 'contact_email') {
+         if (empty($community['contact_email'])) {
+             return '';
+         }
+         return 'mailto:' . sanitize_email($community['contact_email']);
+     }
+ 
+     if (empty($community[$platform])) {
+         return '';
+     }
+ 
+     return esc_url_raw(add_query_arg(array(
+         'sc_track_social' => 1,
+-        'community_id' => sanitize_text_field($community['id']),
++        'community_id' => sanitize_text_field($community['community_id']),
+         'platform' => $platform,
+         'redirect_to' => rawurlencode($community[$platform]),
+     ), home_url('/')));
+ }
+ 
+ function sc_render_facebook_embed($url, $settings) {
+     if (empty($url)) {
+         return '';
+     }
+ 
+     $src = 'https://www.facebook.com/plugins/page.php?href=' . rawurlencode($url) . '&tabs=timeline&width=' . intval($settings['facebook_width']) . '&height=' . intval($settings['facebook_height']) . '&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true';
+     return '<iframe loading="lazy" src="' . esc_url($src) . '" width="' . intval($settings['facebook_width']) . '" height="' . intval($settings['facebook_height']) . '" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+ }
+ 
+ $can_edit = sc_user_can_edit_community($community_id);
+ $event_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'event') : array();
+ $team_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'team') : array();
+ $gallery_images = function_exists('sc_get_community_images') ? sc_get_community_images($community_id, 'gallery') : array();
+ $all_gallery_images = array_values(array_unique(array_merge($gallery_images, $event_images, $team_images)));
+ $other_links = function_exists('sc_get_links_list') ? sc_get_links_list($community['other_links'] ?? '') : array();
+ $default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlogomain.png';
+ $logo_url = !empty($community['logo']) ? $community['logo'] : $default_logo_url;
+ $is_open_for_applications = !empty($community['open_for_applications']);
+ ?>
+ 
+@@ -96,51 +96,51 @@ $is_open_for_applications = !empty($community['open_for_applications']);
+     <?php endif; ?>
+ 
+     <?php if (!empty($all_gallery_images)): ?>
+         <div class="sc-detail-gallery sc-detail-gallery-featured">
+             <h2><?php echo esc_html(sc_t('gallery')); ?></h2>
+             <div class="sc-detail-gallery-grid sc-detail-gallery-grid-large">
+                 <?php foreach ($all_gallery_images as $image): ?>
+                     <a href="<?php echo esc_url($image); ?>" class="sc-gallery-item" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr(sc_t('community_gallery_image')); ?>"></a>
+                 <?php endforeach; ?>
+             </div>
+         </div>
+     <?php endif; ?>
+ 
+     <div class="sc-detail-social-block">
+         <h2 class="sc-detail-section-title"><?php echo esc_html(sc_t('connect')); ?></h2>
+         <table class="sc-detail-social-table">
+             <caption><?php echo esc_html(sc_t('social_media_links')); ?></caption>
+             <tbody>
+             <?php foreach ($social_icons as $platform => $icon):
+                 $link = sc_build_social_url($community, $platform);
+                 if (empty($link)) { continue; }
+                 $label_key = $platform === 'contact_email' ? 'email' : $platform;
+             ?>
+                 <tr>
+                     <th scope="row"><?php echo esc_html(sc_t($label_key)); ?></th>
+-                    <td><a href="<?php echo esc_url($link); ?>" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr(sc_t($label_key)); ?>"></a></td>
++                    <td><a href="<?php echo esc_url($link); ?>"<?php echo $platform === 'contact_email' ? '' : ' target="_blank" rel="noopener noreferrer"'; ?>><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr(sc_t($label_key)); ?>"></a></td>
+                 </tr>
+             <?php endforeach; ?>
+             </tbody>
+         </table>
+ 
+         <?php if (!empty($social_preview_settings['enabled']) && $social_preview_settings['enabled'] === '1' && !empty($social_preview_settings['facebook']) && !empty($community['facebook'])): ?>
+             <div class="sc-detail-social-previews"><?php echo sc_render_facebook_embed($community['facebook'], $social_preview_settings); ?></div>
+         <?php endif; ?>
+         <?php if (!empty($other_links)): ?>
+             <div class="sc-detail-other-links">
+                 <h3><?php echo esc_html(sc_t('other_links')); ?></h3>
+                 <ul>
+                     <?php foreach ($other_links as $index => $other_link): ?>
+                         <li><a href="<?php echo esc_url($other_link); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html(sprintf(sc_t('link_number'), $index + 1)); ?></a></li>
+                     <?php endforeach; ?>
+                 </ul>
+             </div>
+         <?php endif; ?>
+ 
+     </div>
+ 
+     <div class="sc-detail-actions">
+         <button type="button" class="sc-follow-button"><?php echo esc_html(sc_t('follow')); ?></button>
+         <?php if ($is_open_for_applications): ?>
+         <button type="button" class="sc-apply-button"><?php echo esc_html(sc_t('apply')); ?></button>
+diff --git a/templates/edit-community.php b/templates/edit-community.php
+index 8e2675308bc9d7956003331cc11fc9abd66acdf2..558ac5eb2af76fb2d6c76cf9facdb477797dc58a 100644
+--- a/templates/edit-community.php
++++ b/templates/edit-community.php
+@@ -67,51 +67,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
+     } else {
+         // Rate limiting check
+         $rate_check = sc_can_user_edit_now(get_current_user_id(), $community_id);
+         
+         if (!$rate_check['allowed']) {
+             $error_message = $rate_check['message'];
+         } else {
+             // Prepare data
+             $data = array(
+                 'community_id' => $community_id,
+                 'name' => sanitize_text_field($_POST['name']),
+                 'shortdescription' => sanitize_textarea_field($_POST['shortdescription']),
+                 'description' => wp_kses_post($_POST['description']),
+                 'webpage' => esc_url_raw($_POST['webpage']),
+                 'facebook' => esc_url_raw($_POST['facebook']),
+                 'instagram' => esc_url_raw($_POST['instagram']),
+                 'tiktok' => esc_url_raw($_POST['tiktok']),
+                 'discord' => esc_url_raw($_POST['discord']),
+                 'other_links' => sc_sanitize_links_list($_POST['other_links'] ?? ''),
+                 'logo' => esc_url_raw($_POST['logo']),
+                 'contact_email' => sanitize_email($_POST['contact_email'] ?? ''),
+                 'open_for_applications' => isset($_POST['open_for_applications']) ? 1 : 0,
+                 'faculty_id' => isset($_POST['faculty_id']) && !empty($_POST['faculty_id']) ? intval($_POST['faculty_id']) : null,
+                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
+                 'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
+-                'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
++                'tags' => array_merge(
++                    isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
++                    isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
++                ),
+                 'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
+                 'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
+                 'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
+             );
+ 
+             // Save
+             $result = sc_save_community($data);
+             error_log('Edit community ID: ' . $community_id);
+             error_log('Edit community save result: ' . print_r($result, true));
+ 
+             // Build redirect URL
+             $redirect_url = add_query_arg(
+                 array(
+                     'action' => 'edit',
+                     'id' => $community_id
+                 ),
+                 sc_get_admin_page_url()
+             );
+             
+             if ($result === true) {
+                 $redirect_url = add_query_arg('updated', '1', $redirect_url);
+             } else {
+                 $redirect_url = add_query_arg('error', urlencode($result), $redirect_url);
+             }
+             
+@@ -179,51 +182,51 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
+                     'textarea_rows' => 12,
+                     'media_buttons' => false,
+                     'teeny' => false,
+                     'quicktags' => true,
+                     'tinymce' => array(
+                         'toolbar1' => 'formatselect,bold,italic,underline,bullist,numlist,blockquote,alignleft,aligncenter,alignright,link,unlink,undo,redo',
+                         'toolbar2' => 'pastetext,removeformat,charmap,outdent,indent',
+                     ),
+                 )
+             );
+             ?>
+             <p class="description"><?php echo esc_html(sc_t('editor_help')); ?></p>
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-webpage"><?php echo esc_html(sc_t('website_url')); ?></label>
+             <input type="url" id="sc-webpage" name="webpage" value="<?php echo esc_url($community['webpage']); ?>">
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-facebook"><?php echo esc_html(sc_t('facebook_url')); ?></label>
+             <input type="url" id="sc-facebook" name="facebook" value="<?php echo esc_url($community['facebook']); ?>">
+         </div>
+ 
+         <div class="sc-form-group">
+-            <<button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html(sc_t('pull_facebook')); ?></button>
++            <button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html(sc_t('pull_facebook')); ?></button>
+             <p id="sc-facebook-pull-status" style="margin-top:8px;"></p>
+         </div>
+         <div class="sc-form-group">
+             <label for="sc-instagram"><?php echo esc_html(sc_t('instagram_url')); ?></label>
+             <input type="url" id="sc-instagram" name="instagram" value="<?php echo esc_url($community['instagram']); ?>">
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-tiktok"><?php echo esc_html(sc_t('tiktok_url')); ?></label>
+             <input type="url" id="sc-tiktok" name="tiktok" value="<?php echo esc_url($community['tiktok']); ?>">
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-discord"><?php echo esc_html(sc_t('discord_url')); ?></label>
+             <input type="url" id="sc-discord" name="discord" value="<?php echo esc_url($community['discord']); ?>">
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-other-links"><?php echo esc_html(sc_t('other_links')); ?></label>
+             <textarea id="sc-other-links" name="other_links" rows="3"><?php echo esc_textarea($community['other_links'] ?? ''); ?></textarea>
+             <p class="description"><?php echo esc_html(sc_t('links_help')); ?></p>
+         </div>
+ 
+         <div class="sc-form-group">
+             <label for="sc-logo"><?php echo esc_html(sc_t('logo_url')); ?></label>
+@@ -330,50 +333,52 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
+             <div class="sc-logo-upload sc-gallery-upload">
+                 <p class="sc-upload-or"><?php echo esc_html(sc_t('or_separator')); ?></p>
+                 <label for="sc-gallery-upload" class="sc-upload-button">
+                     <?php echo esc_html(sc_t('upload_gallery_images')); ?>
+                 </label>
+                 <input type="file" id="sc-gallery-upload" accept="image/png,image/jpeg,image/jpg,image/webp" multiple style="display:none;">
+                 <div class="sc-upload-info"><?php echo esc_html(sc_t('gallery_upload_help')); ?></div>
+                 <div class="sc-upload-progress sc-gallery-progress" style="display:none;">
+                     <div class="sc-progress-bar"></div>
+                 </div>
+                 <div class="sc-upload-message sc-gallery-upload-message"></div>
+             </div>
+         </div>
+         </div>
+ <div class="sc-form-group">
+             <label><?php echo esc_html(sc_t('tags')); ?></label>
+             <div class="sc-tags-selector">
+                 <?php foreach ($all_tags as $tag): ?>
+                     <label class="sc-tag-item">
+                         <input type="checkbox" name="tags[]" value="<?php echo esc_attr($tag->id); ?>"
+                             <?php checked(in_array($tag->tag_name, $community['tags'], true)); ?>>
+                         <span class="sc-tag-name"><?php echo esc_html($tag->tag_name); ?></span>
+                     </label>
+                 <?php endforeach; ?>
+             </div>
++            <input type="text" name="new_tags" class="regular-text" placeholder="<?php echo esc_attr__('Add new tags, separated by commas', 'science-communities'); ?>">
++            <p class="description"><?php echo esc_html__('New tags are saved only when this community uses them, so unused tags are not kept.', 'science-communities'); ?></p>
+         </div>
+ 
+         <div class="sc-form-actions">
+             <button type="submit" class="sc-submit-button">
+                 <?php echo esc_html(sc_t('save_changes')); ?>
+             </button>
+             <a href="<?php echo esc_url(sc_get_admin_page_url()); ?>" class="sc-cancel-button">
+                 <?php echo esc_html(sc_t('cancel')); ?>
+             </a>
+         </div>
+     </form>
+ </div>
+         <?php if (sc_is_superadmin()): ?>
+ <div class="sc-form-section">
+     <h3><?php echo esc_html(sc_t('community_administrators')); ?></h3>
+     
+     <?php
+     // Get current admins for this community
+     $role_name = $community_id . '-admin';
+     $admins = get_users(array('role__in' => array($role_name)));
+     ?>
+     
+     <?php if (!empty($admins)): ?>
+     <ul class="sc-admin-list">
+         <?php foreach ($admins as $admin): ?>
+diff --git a/templates/manage-users.php b/templates/manage-users.php
+index 09614c4cc7ae20d81fedf26761a7dcbf78eb5bb0..359b428d20b47e15686d65816aba45b512d4b0b7 100644
+--- a/templates/manage-users.php
++++ b/templates/manage-users.php
+@@ -1,288 +1,347 @@
+ <?php
+ /**
+  * Template for managing plugin users
+  * Superadmins only
+  */
+ 
+ if (!defined('ABSPATH')) exit;
+ 
+ if (!sc_is_superadmin()) {
+     echo '<p>' . __('Access denied.', 'science-communities') . '</p>';
+     return;
+ }
+ 
+ $success_message = '';
+ $error_message = '';
+ $import_console = array();
++$action_notes = '';
+ $communities = sc_get_editable_communities();
+ 
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
+     if (!isset($_POST['sc_add_admin_nonce']) || !wp_verify_nonce($_POST['sc_add_admin_nonce'], 'sc_add_admin')) {
+         $error_message = __('Security check failed.', 'science-communities');
+     } else {
+         $username = sanitize_user($_POST['username'] ?? '');
+         $email = sanitize_email($_POST['email'] ?? '');
+         $community_id = sanitize_text_field($_POST['community_id'] ?? '');
+         $password_raw = (string) ($_POST['password'] ?? '');
++        $action_notes = sanitize_textarea_field($_POST['action_info'] ?? '');
+ 
+         if (empty($username) || empty($email) || empty($community_id)) {
+             $error_message = __('All fields are required.', 'science-communities');
+         } else {
+             $user_id = username_exists($username);
+             if (!$user_id && email_exists($email) == false) {
+                 $password = !empty($password_raw) ? $password_raw : wp_generate_password();
+                 $user_id = wp_create_user($username, $password, $email);
+                 if (!is_wp_error($user_id)) {
+                     $user = get_user_by('id', $user_id);
+                     if ($user) {
+                         $user->add_role('subscriber');
+                     }
+                     wp_new_user_notification($user_id, null, 'both');
+                 }
+             } elseif (!$user_id) {
+                 $user_id = email_exists($email);
+             }
+ 
+             if (is_wp_error($user_id)) {
+                 $error_message = $user_id->get_error_message();
+             } elseif ($user_id) {
+                 sc_assign_community_admin($user_id, $community_id);
++                sc_record_update_history(array(
++                    'action' => 'user_created_assigned',
++                    'communities_updated' => 1,
++                    'notes' => trim(sprintf('User %s (%s) assigned to %s. %s', $username, $email, $community_id, $action_notes)),
++                ));
+                 $success_message = __('User saved and assigned successfully.', 'science-communities');
+             }
+         }
+     }
+ }
+ 
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv'])) {
+     if (!isset($_POST['sc_import_admin_csv_nonce']) || !wp_verify_nonce($_POST['sc_import_admin_csv_nonce'], 'sc_import_admin_csv')) {
+         $error_message = __('Security check failed.', 'science-communities');
+     } elseif (empty($_FILES['users_csv']['tmp_name'])) {
+         $error_message = __('Please provide a CSV file.', 'science-communities');
+     } else {
++        $action_notes = sanitize_textarea_field($_POST['import_info'] ?? '');
+         $handle = fopen($_FILES['users_csv']['tmp_name'], 'r');
+         $row = 0;
++        $skipped_count = 0;
+         $created_count = 0;
+         $assigned_count = 0;
+         $delimiter = sc_detect_csv_delimiter($_FILES['users_csv']['tmp_name']);
+         $headers = array();
+         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
+             $row++;
+ 
+             if ($row === 1) {
+                 $headers = array_map(function($header) {
+                     $header = strtolower(trim((string) $header));
+                     return preg_replace('/[^a-z0-9_]/', '', $header);
+                 }, $data);
+ 
+                 if (in_array('username', $headers, true)) {
+                     continue;
+                 }
+ 
+                 // No header row: process this row as data with legacy positional format.
+                 $headers = array('username', 'email', 'community_id', 'password');
+             }
+ 
+             $row_data = array();
+             foreach ($headers as $index => $header) {
+                 if ($header === '') {
+                     continue;
+                 }
+                 $row_data[$header] = isset($data[$index]) ? trim((string) $data[$index]) : '';
+             }
+ 
+             $username = sanitize_user($row_data['username'] ?? '');
+             $email = sanitize_email($row_data['email'] ?? '');
+             $community_id = sanitize_text_field($row_data['community_id'] ?? '');
+             $csv_password = isset($row_data['password']) ? trim((string) $row_data['password']) : '';
+ 
+             if (empty($username) || empty($email) || empty($community_id)) {
++                $skipped_count++;
+                 $import_console[] = sprintf('Row %d skipped: missing username/email/community_id.', $row);
+                 continue;
+             }
+ 
+             $user_id = username_exists($username);
+             if (!$user_id && email_exists($email) == false) {
+                 $password = !empty($csv_password) ? $csv_password : wp_generate_password();
+                 $user_id = wp_create_user($username, $password, $email);
+                 if (!is_wp_error($user_id)) {
+                     $created_count++;
+                     $import_console[] = sprintf('Row %d: user created (%s).', $row, $username);
+                     $user = get_user_by('id', $user_id);
+                     if ($user) {
+                         $user->add_role('subscriber');
+                     }
+                 }
+             } elseif (!$user_id) {
+                 $user_id = email_exists($email);
+             }
+ 
+             if ($user_id && !is_wp_error($user_id)) {
+                 if (sc_assign_community_admin($user_id, $community_id)) {
+                     $assigned_count++;
+                     $import_console[] = sprintf('Row %d: assigned %s to %s.', $row, $username, $community_id);
+                 }
+             }
+         }
+         fclose($handle);
++        sc_record_update_history(array(
++            'action' => 'users_import',
++            'filename' => basename($_FILES['users_csv']['name'] ?? ''),
++            'communities_created' => $created_count,
++            'communities_updated' => $assigned_count,
++            'communities_skipped' => $skipped_count,
++            'notes' => trim($action_notes . "
++" . implode("
++", array_slice($import_console, -20))),
++        ));
+         $success_message = sprintf(__('CSV processed. Created: %d, Assigned: %d', 'science-communities'), $created_count, $assigned_count);
+     }
+ }
+ 
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_user'])) {
+     if (!isset($_POST['sc_delete_user_nonce']) || !wp_verify_nonce($_POST['sc_delete_user_nonce'], 'sc_delete_user')) {
+         $error_message = __('Security check failed.', 'science-communities');
+     } else {
+         $user_id = intval($_POST['user_id'] ?? 0);
+         $user = get_user_by('id', $user_id);
+         if ($user) {
+             $roles = (array) $user->roles;
+             $is_superadmin = in_array('superadmin', $roles, true);
+             $is_page_admin = false;
+             foreach ($roles as $role) {
+                 if (substr($role, -6) === '-admin') {
+                     $is_page_admin = true;
+                     break;
+                 }
+             }
+ 
+             if ($is_superadmin || $is_page_admin) {
+                 $error_message = __('This user cannot be deleted (superadmin or page admin).', 'science-communities');
+             } else {
+                 require_once ABSPATH . 'wp-admin/includes/user.php';
+                 wp_delete_user($user_id);
++                sc_record_update_history(array(
++                    'action' => 'user_deleted',
++                    'communities_deleted' => 1,
++                    'notes' => sprintf('Deleted user ID %d (%s).', $user_id, $user->user_email),
++                ));
+                 $success_message = __('User deleted.', 'science-communities');
+             }
+         }
+     }
+ }
+ 
+ 
+ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_manage_assignment'])) {
+     if (!isset($_POST['sc_manage_assignment_nonce']) || !wp_verify_nonce($_POST['sc_manage_assignment_nonce'], 'sc_manage_assignment')) {
+         $error_message = __('Security check failed.', 'science-communities');
+     } else {
+         $selected_user_id = intval($_POST['selected_user_id'] ?? 0);
+         $selected_community_id = sanitize_text_field($_POST['selected_community_id'] ?? '');
+         $action_type = sanitize_text_field($_POST['assignment_action'] ?? '');
++        $action_notes = sanitize_textarea_field($_POST['assignment_info'] ?? '');
+ 
+         if (!$selected_user_id || empty($selected_community_id) || !in_array($action_type, array('assign', 'unassign'), true)) {
+             $error_message = __('Please select a user, a community, and action.', 'science-communities');
+         } elseif ($action_type === 'assign') {
+             sc_assign_community_admin($selected_user_id, $selected_community_id);
++            sc_record_update_history(array(
++                'action' => 'user_assigned',
++                'communities_updated' => 1,
++                'notes' => trim(sprintf('Assigned user ID %d to %s. %s', $selected_user_id, $selected_community_id, $action_notes)),
++            ));
+             $success_message = __('Assignment saved.', 'science-communities');
+         } else {
+             $user = get_user_by('id', $selected_user_id);
+             if ($user) {
+                 $user->remove_role($selected_community_id . '-admin');
++                sc_record_update_history(array(
++                    'action' => 'user_unassigned',
++                    'communities_updated' => 1,
++                    'notes' => trim(sprintf('Removed user ID %d from %s. %s', $selected_user_id, $selected_community_id, $action_notes)),
++                ));
+                 $success_message = __('Assignment removed.', 'science-communities');
+             }
+         }
+     }
+ }
+ 
+ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
+ ?>
+ 
+ <div class="sc-manage-users">
+     <h1><?php echo esc_html(sc_t('user_management')); ?></h1>
+ 
+     <?php if (!empty($success_message)): ?>
+     <div class="notice notice-success"><p><?php echo esc_html($success_message); ?></p></div>
+     <?php endif; ?>
+ 
+     <?php if (!empty($error_message)): ?>
+     <div class="notice notice-error"><p><?php echo esc_html($error_message); ?></p></div>
+     <?php endif; ?>
+     <?php if (!empty($import_console)): ?>
+     <div class="notice notice-info"><p><strong><?php _e('Import console', 'science-communities'); ?></strong></p>
+         <pre style="max-height:220px;overflow:auto;background:#111;color:#f3f3f3;padding:12px;"><?php echo esc_html(implode("\n", $import_console)); ?></pre>
+     </div>
+     <?php endif; ?>
+ 
++
++    <div class="card" style="max-width: 1000px; margin: 20px 0;">
++        <h2><?php _e('User action history', 'science-communities'); ?></h2>
++        <?php
++        global $wpdb;
++        $history_table = $wpdb->prefix . 'science_communities_update_history';
++        $user_history = $wpdb->get_results("SELECT * FROM $history_table WHERE action LIKE 'user_%' OR action = 'users_import' ORDER BY created_at DESC LIMIT 25", ARRAY_A);
++        ?>
++        <table class="wp-list-table widefat fixed striped">
++            <thead><tr><th><?php _e('Date', 'science-communities'); ?></th><th><?php _e('Actor', 'science-communities'); ?></th><th><?php _e('Action', 'science-communities'); ?></th><th><?php _e('Info', 'science-communities'); ?></th></tr></thead>
++            <tbody>
++                <?php if (empty($user_history)): ?>
++                    <tr><td colspan="4"><?php _e('No user-management history yet.', 'science-communities'); ?></td></tr>
++                <?php else: foreach ($user_history as $entry): ?>
++                    <tr><td><?php echo esc_html($entry['created_at']); ?></td><td><?php echo esc_html($entry['actor_name']); ?></td><td><?php echo esc_html($entry['action']); ?></td><td><pre style="white-space:pre-wrap;margin:0;"><?php echo esc_html($entry['notes']); ?></pre></td></tr>
++                <?php endforeach; endif; ?>
++            </tbody>
++        </table>
++    </div>
++
+     <form method="post" class="sc-add-admin-form sc-user-form">
+         <?php wp_nonce_field('sc_add_admin', 'sc_add_admin_nonce'); ?>
+         <input type="hidden" name="sc_add_admin" value="1">
+         <h2><?php echo esc_html(sc_t('create_user_manually')); ?></h2>
+ 
+         <p><input type="text" name="username" placeholder="<?php echo esc_attr(sc_t('username')); ?>" required></p>
+         <p><input type="email" name="email" placeholder="<?php echo esc_attr(sc_t('email')); ?>" required></p>
+         <p><input type="text" name="password" placeholder="<?php echo esc_attr(sc_t('password_optional')); ?>"></p>
++        <p><textarea name="action_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this action', 'science-communities'); ?>"></textarea></p>
+         <p>
+             <input type="text" id="sc-community-search" placeholder="Search community..." style="width: 320px;">
+             <select name="community_id" id="sc-community-select" required>
+                 <option value=""><?php echo esc_html(sc_t('select_community')); ?></option>
+                 <?php foreach ($communities as $community): ?>
+                 <option value="<?php echo esc_attr($community['community_id']); ?>">
+                     <?php echo esc_html($community['name']); ?> (<?php echo esc_html($community['community_id']); ?>)
+                 </option>
+                 <?php endforeach; ?>
+             </select>
+         </p>
+ 
+         <button type="submit" class="button button-primary"><?php echo esc_html(sc_t('create_assign')); ?></button>
+     </form>
+ 
+     <hr>
+ 
+     <form method="post" enctype="multipart/form-data">
+         <?php wp_nonce_field('sc_import_admin_csv', 'sc_import_admin_csv_nonce'); ?>
+         <input type="hidden" name="sc_import_admin_csv" value="1">
+         <h2><?php _e('Import users from CSV', 'science-communities'); ?></h2>
+         <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pkn-manage-users&sc_export_accounts=1'), 'sc_export_accounts')); ?>"><?php _e('Export users CSV', 'science-communities'); ?></a></p>
+         <p><?php _e('CSV format: username,email,community_id,password(optional)', 'science-communities'); ?></p>
+         <p><input type="file" name="users_csv" accept=".csv" required></p>
++        <p><textarea name="import_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this user import', 'science-communities'); ?>"></textarea></p>
+         <button type="submit" class="button"><?php _e('Import CSV', 'science-communities'); ?></button>
+     </form>
+ 
+     <hr>
+ 
+ 
+ 
+     <hr>
+ 
+     <form method="post" class="sc-assignment-form sc-user-form">
+         <?php wp_nonce_field('sc_manage_assignment', 'sc_manage_assignment_nonce'); ?>
+         <input type="hidden" name="sc_manage_assignment" value="1">
+         <h2><?php echo esc_html(sc_t('assign_unassign_admin')); ?></h2>
+         <p>
+             <input list="sc-users-list" name="selected_user_id" placeholder="<?php echo esc_attr(sc_t('type_select_user_id')); ?>" required>
+             <datalist id="sc-users-list">
+                 <?php foreach ($users as $user): ?>
+                 <option value="<?php echo esc_attr($user->ID); ?>"><?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?></option>
+                 <?php endforeach; ?>
+             </datalist>
+         </p>
+         <p>
+             <input type="text" id="sc-community-search-2" placeholder="Search community...">
+             <select name="selected_community_id" id="sc-community-select-2" required>
+                 <option value=""><?php echo esc_html(sc_t('select_community')); ?></option>
+                 <?php foreach ($communities as $community): ?>
+                 <option value="<?php echo esc_attr($community['community_id']); ?>"><?php echo esc_html($community['name']); ?> (<?php echo esc_html($community['community_id']); ?>)</option>
+                 <?php endforeach; ?>
+             </select>
+         </p>
++        <p><textarea name="assignment_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this assignment change', 'science-communities'); ?>"></textarea></p>
+         <p>
+             <button type="submit" name="assignment_action" value="assign" class="button button-primary"><?php echo esc_html(sc_t('assign')); ?></button>
+             <button type="submit" name="assignment_action" value="unassign" class="button"><?php echo esc_html(sc_t('unassign')); ?></button>
+         </p>
+     </form>
+ 
+     <h2><?php echo esc_html(sc_t('users')); ?></h2>
+     <table class="wp-list-table widefat striped">
+         <thead>
+             <tr>
+                 <th><?php _e('User', 'science-communities'); ?></th>
+                 <th><?php echo esc_html(sc_t('roles')); ?></th>
+                 <th><?php echo esc_html(sc_t('action')); ?></th>
+             </tr>
+         </thead>
+         <tbody>
+         <?php foreach ($users as $user): ?>
+             <tr>
+                 <td><?php echo esc_html($user->display_name . ' (' . $user->user_email . ')'); ?></td>
+                 <td><?php echo esc_html(implode(', ', (array) $user->roles)); ?></td>
+                 <td>
+                     <form method="post" onsubmit="return confirm('Delete this user?');">
+                         <?php wp_nonce_field('sc_delete_user', 'sc_delete_user_nonce'); ?>
+                         <input type="hidden" name="sc_delete_user" value="1">
+                         <input type="hidden" name="user_id" value="<?php echo esc_attr($user->ID); ?>">
+ 
+EOF
+)
