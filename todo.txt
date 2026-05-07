@@ -1,0 +1,112 @@
+Error (ER1) When I go into add community page https://kola.ug.edu.pl/sc-admin/?action=add and click "create community" I get moved to a blank site - https://kola.ug.edu.pl/wp-admin/admin-post.php. Nothing gets saved, nothing changes in the database basically. In logs I see:
+==== ADD COMMUNITY ADMIN-POST ====, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+REQUEST_METHOD: POST, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+REQUEST_URI: /wp-admin/admin-post.php, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+REFERER: https://kola.ug.edu.pl/sc-admin/?action=add, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+CONTENT_TYPE: application/x-www-form-urlencoded, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+POST keys: action, sc_community_add_flag, sc_add_community_nonce, _wp_http_referer, name, shortdescription, description, webpage, facebook, instagram, tiktok, discord, logo, referer: https://kola.ug.edu.pl/sc-admin/?action=add
+[php:notice] [pid 17848:tid 1904] [client 127.0.0.1:57570]
+
+Error (ER2) When editing a community the whole Image upload part doesn't really work. It just shows a gray box with class .sc-upload-progress and nothing changes. NOTE: I'm using APACHE on XAMPP and I cannot yet confirm if it is a XAMPP iss ue or a code issue that will persist on other websites, so we need some troubleshooting there
+
+Missing feature (MF1) There should be an UPLOAD LOGO logo feature with the same limitations in add-community
+RZECZY POWYŻEJ SĄ JUŻ WPROWADZONE, reszta niebardzo
+
+
+Missing Features:
+DONE MF2 - In sc-admin, when editing users who manage SC's I can only see "User management page – to be implemented" We need to create some code for this. 
+DONE MF3 - Add a "remove" button to sc-admin communities with prompt "are you sure" (it will be later styled in styles.css, don't do it now). Also important is the ability to perform bulk 
+MF4 - Add a Sort By button in sc-admin as well as an option to display either 60 or 120 items and a nice numbered bar at the bottom and top for easier navigation (it will be later styled in styles.css, don't do it now)
+MF5 - In community list as well as search results we need a way to display items either in 1 (45 items max) or 2 columns (90 items displayed), as well as a navbar with numbers at the top and bottom to navigate with the same css classes
+MF6 - We have to add https://ug.edu.pl/themes/ug_theme/images/underline.svg under all titles on this website so it looks more like ug.edu.pl
+
+
+
+
+
+MF7 - We need to add a polish and english version
+
+
+
+
+
+
+
+New feature 1: Community Statistics
+Why: No metrics on engagement
+Create: includes/statistics.php
+Track:
+- Page views per community (simple hit counter)
+- Social link clicks
+- Search terms that find each community
+- Tag popularity
+
+New feature 2: Bulk Edit Communities
+Why: Managing multiple communities is tedious
+Where: templates/admin-communities-list.php
+Add checkboxes and bulk actions:
+- Bulk change status
+- Bulk change faculty
+- Bulk add/remove tags
+- Bulk archive/unarchive
+
+New feature 3: Community Activity Dashboard
+Why: No visibility into what's happening
+Create new file: templates/dashboard.php
+Show:
+- Recent edits (last 10)
+- Most viewed communities (if you track views)
+- Communities without logos
+- Communities missing descriptions
+- Tag usage statistics
+
+New feature 4: Image Gallery for Communities
+Why: One logo isn't enough to showcase activities
+Where: Extend community table
+Add ability to upload multiple images:
+- Event photos
+- Team photos
+- Achievement images
+
+New feature 5: Export all communities for easier backup as CSV in WP admin panel.
+
+New feature 6: Community Status History
+Why: Can't see why/when community was suspended
+Create table: science_communities_status_history
+Log every status change with:
+- Old status
+- New status
+- Changed by (user)
+- Reason (text field)
+- Timestamp
+
+Mailing, contact form ect
+
+---
+
+New todo PKN (2026-04-03)
+ER1: Fix bulk CSV import dropping data / creating empty communities (harden CSV parser + validation).
+ER2: Override theme 66.66% `.col-lg-8` layout for plugin pages and force full-width content.
+ER3: Prevent footer overlap caused by `html, body, #page { height: 100%; }` by applying plugin-safe height overrides.
+MF1: Add UG-style decorative background strip + underline for key titles.
+MF2: Improve language handling visibility in Forum/Statistics by exposing PL/EN toggle there.
+Pending: Build a full UG-like header replacement with logo text/icons once final design asset file is provided.
+
+
+
+
+System zgłoszeń
+Strona główna
+Tagi spierdolone
+Placeholder description
+Menu
+
+
+
+
+
+W dzień otwarty 2024 roku 
+
+Things on my main page - a nice hero with an animated sc searchbox that appears.
+Then there should be 
+

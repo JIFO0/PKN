@@ -1,0 +1,393 @@
+﻿/* ============================================
+   PKN SEARCH RESULTS PAGE STYLES
+   University of Gdansk Theme - Sharp & Modern
+   ============================================ */
+
+/* Global Variables (inherited from globals.css) */
+:root {
+    --ug-primary: #0066CC;
+    --ug-primary-dark: #004C99;
+    --ug-primary-light: #3385D6;
+    --ug-secondary: #FF6B35;
+    --ug-success: #28A745;
+    --ug-warning: #FFC107;
+    --ug-danger: #DC3545;
+    --ug-dark: #1A1A1A;
+    --ug-gray-100: #F8F9FA;
+    --ug-gray-200: #E9ECEF;
+    --ug-gray-300: #DEE2E6;
+    --ug-gray-400: #CED4DA;
+    --ug-gray-500: #ADB5BD;
+    --ug-gray-600: #6C757D;
+    --ug-gray-700: #495057;
+    --ug-gray-800: #343A40;
+    --ug-gray-900: #212529;
+    --ug-white: #FFFFFF;
+    
+    --ug-blue: #0041d2;
+    --ug-cyan: #48bdcb;
+    --ug-blue-dark: #002d91;
+    
+    --ug-border-radius: 0;
+    --ug-transition: all 0.2s ease;
+    --ug-shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --ug-shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --ug-shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+/* ============================================
+   RESULTS CONTAINER
+   ============================================ */
+
+.sc-results-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: var(--ug-white);
+}
+
+/* ============================================
+   RESULTS HEADER
+   ============================================ */
+
+.sc-results-header {
+    padding-bottom: 32px;
+    border-bottom: 4px solid var(--ug-blue);
+    margin-bottom: 40px;
+}
+
+.sc-results-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--ug-gray-900);
+    margin: 0 0 24px 0;
+    line-height: 1.2;
+}
+
+/* Active Filters in Header */
+.sc-results-header .sc-active-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--ug-gray-100);
+    border-left: 4px solid var(--ug-cyan);
+}
+
+.sc-filter-label {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--ug-gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sc-active-tag {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--ug-cyan);
+    color: var(--ug-white);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-left: 3px solid var(--ug-blue);
+}
+
+/* Result Count */
+.sc-result-count {
+    font-size: 1.125rem;
+    color: var(--ug-gray-700);
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+
+/* New Search Button */
+.sc-new-search {
+    display: inline-block;
+    padding: 14px 28px;
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 2px solid var(--ug-blue);
+    transition: var(--ug-transition);
+}
+
+.sc-new-search:hover {
+    background: var(--ug-blue-dark);
+    border-color: var(--ug-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--ug-shadow-md);
+    color: var(--ug-white);
+}
+
+/* ============================================
+   NO RESULTS
+   ============================================ */
+
+.sc-no-results {
+    text-align: center;
+    padding: 80px 40px;
+    background: var(--ug-gray-100);
+    border: 2px solid var(--ug-gray-300);
+    border-left: 4px solid var(--ug-warning);
+}
+
+.sc-no-results p {
+    font-size: 1.125rem;
+    color: var(--ug-gray-600);
+    margin: 0 0 12px 0;
+    line-height: 1.6;
+}
+
+.sc-no-results p:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================
+   RESULTS LIST
+   ============================================ */
+
+.sc-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ============================================
+   RESULT ITEM
+   ============================================ */
+
+.sc-result-item {
+    display: flex;
+    align-items: stretch;
+    background: var(--ug-white);
+    border: 2px solid var(--ug-gray-300);
+    border-left-width: 4px;
+    border-left-color: var(--ug-blue);
+    transition: var(--ug-transition);
+    overflow: hidden;
+}
+
+.sc-result-item:hover {
+    border-color: var(--ug-blue);
+    transform: translateY(-2px);
+    box-shadow: var(--ug-shadow-md);
+}
+
+/* Result Content */
+.sc-result-content {
+    flex: 1;
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+}
+
+/* Logo */
+.sc-result-logo {
+    flex-shrink: 0;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ug-gray-100);
+    border: 2px solid var(--ug-gray-300);
+    overflow: hidden;
+}
+
+.sc-result-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Result Info */
+.sc-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sc-result-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ug-gray-900);
+    margin: 0 0 12px 0;
+    line-height: 1.3;
+}
+
+.sc-result-description {
+    font-size: 1rem;
+    color: var(--ug-gray-700);
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+/* Result Tags */
+.sc-result-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.sc-result-tag {
+    display: inline-block;
+    padding: 6px 12px;
+    background: var(--ug-gray-100);
+    color: var(--ug-gray-900);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 2px solid var(--ug-gray-300);
+    border-left-width: 3px;
+    border-left-color: var(--ug-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Result Actions */
+.sc-result-actions {
+    display: flex;
+    align-items: center;
+    padding: 24px;
+    background: var(--ug-gray-100);
+    border-left: 2px solid var(--ug-gray-300);
+}
+
+.sc-view-details {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    border: 2px solid var(--ug-blue);
+    cursor: pointer;
+    transition: var(--ug-transition);
+    text-decoration: none;
+}
+
+.sc-view-details:hover {
+    background: var(--ug-blue-dark);
+    border-color: var(--ug-blue-dark);
+    transform: scale(1.1);
+    box-shadow: var(--ug-shadow-md);
+}
+
+.sc-view-details svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 992px) {
+    .sc-result-content {
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .sc-result-logo {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .sc-result-name {
+        font-size: 1.375rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .sc-results-container {
+        padding: 30px 15px;
+    }
+    
+    .sc-results-header {
+        padding-bottom: 24px;
+        margin-bottom: 30px;
+    }
+    
+    .sc-results-title {
+        font-size: 1.75rem;
+    }
+    
+    .sc-result-item {
+        flex-direction: column;
+    }
+    
+    .sc-result-content {
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+    }
+    
+    .sc-result-logo {
+        width: 100%;
+        height: 120px;
+    }
+    
+    .sc-result-actions {
+        padding: 16px;
+        justify-content: center;
+        border-left: none;
+        border-top: 2px solid var(--ug-gray-300);
+    }
+}
+
+@media (max-width: 480px) {
+    .sc-results-title {
+        font-size: 1.5rem;
+    }
+    
+    .sc-result-name {
+        font-size: 1.25rem;
+    }
+    
+    .sc-result-description {
+        font-size: 0.9375rem;
+    }
+    
+    .sc-result-tags {
+        gap: 6px;
+    }
+    
+    .sc-result-tag {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+    }
+    
+    .sc-no-results {
+        padding: 50px 20px;
+    }
+    
+    .sc-no-results p {
+        font-size: 1rem;
+    }
+}
+.sc-result-actions {
+    gap: 12px;
+}
+
+.sc-result-actions .sc-apply-button {
+    padding: 12px 18px;
+    border: 2px solid var(--ug-blue);
+    background: var(--ug-blue);
+    color: var(--ug-white);
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--ug-transition);
+}
+
+.sc-result-actions .sc-apply-button:hover {
+    background: var(--ug-blue-dark);
+    border-color: var(--ug-blue-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--ug-shadow-md);
+}

@@ -1,0 +1,211 @@
+/* ==========================================
+   Shared PKN frontend styling (UG-inspired)
+   ========================================== */
+
+/* Title underline used across pages */
+.sc-results-title,
+.sc-result-name,
+.sc-detail-title,
+.sc-list-card .sc-card-title,
+.sc-forum h2,
+.sc-forum h3,
+.sc-add-community h1,
+.sc-edit-community h1,
+.sc-manage-users h1,
+.sc-manage-users h2,
+.sc-statistics-page h1,
+.sc-statistics-page h2,
+.sc-dashboard-page h1,
+.sc-dashboard-page h2,
+.sc-contact-requests-page h1 {
+  position: relative;
+  margin-bottom: 1.1rem;
+}
+
+.sc-results-title::after,
+.sc-result-name::after,
+.sc-detail-title::after,
+.sc-list-card .sc-card-title::after,
+.sc-forum h2::after,
+.sc-forum h3::after,
+.sc-add-community h1::after,
+.sc-edit-community h1::after,
+.sc-manage-users h1::after,
+.sc-manage-users h2::after,
+.sc-statistics-page h1::after,
+.sc-statistics-page h2::after,
+.sc-dashboard-page h1::after,
+.sc-dashboard-page h2::after,
+.sc-contact-requests-page h1::after {
+  content: "";
+  display: block;
+  width: 220px;
+  max-width: 50%;
+  height: 9px;
+  margin-top: 0.25rem;
+  background: url('../images/underline.svg') no-repeat left center;
+  background-size: contain;
+}
+
+.sc-list-header-description,
+.sc-results-header p {
+  color: var(--ug-gray-700);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Reusable UG cards/tables for utility pages */
+.sc-statistics-page,
+.sc-dashboard-page,
+.sc-contact-requests-page,
+.sc-manage-users {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  background: var(--ug-white);
+}
+
+.sc-statistics-page table,
+.sc-dashboard-page table,
+.sc-contact-requests-page table,
+.sc-manage-users table {
+  border: 2px solid var(--ug-gray-300);
+  border-collapse: collapse;
+  margin-bottom: 32px;
+}
+
+.sc-statistics-page th,
+.sc-dashboard-page th,
+.sc-contact-requests-page th,
+.sc-manage-users th {
+  background: var(--ug-blue);
+  color: var(--ug-white);
+  font-weight: 700;
+}
+
+.sc-statistics-page td,
+.sc-statistics-page th,
+.sc-dashboard-page td,
+.sc-dashboard-page th,
+.sc-contact-requests-page td,
+.sc-contact-requests-page th,
+.sc-manage-users td,
+.sc-manage-users th {
+  padding: 12px 14px;
+  border: 1px solid var(--ug-gray-300);
+}
+
+.sc-dashboard-page ul,
+.sc-manage-users form,
+.sc-contact-requests-page form {
+  background: var(--ug-gray-100);
+  border: 2px solid var(--ug-gray-300);
+  padding: 18px;
+}
+
+.sc-dashboard-page ul {
+  margin: 0 0 24px;
+}
+
+.sc-manage-users hr {
+  border: 0;
+  border-top: 2px solid var(--ug-gray-300);
+  margin: 26px 0;
+}
+
+/* Full-width rescue for themes forcing .col-lg-8 on plugin pages */
+body.sc-plugin-page .sc-force-fullwidth-column,
+body.sc-plugin-page .sc-force-fullwidth-column.col-lg-8 {
+  width: 100% !important;
+  flex: 0 0 100% !important;
+  max-width: 100% !important;
+}
+
+body.sc-plugin-page .sc-force-fullwidth-column + .col-lg-4,
+body.sc-plugin-page .sc-force-fullwidth-column + .col-md-4,
+body.sc-plugin-page .sc-force-fullwidth-column + .sidebar,
+body.sc-plugin-page .sc-plugin-row > aside {
+  display: none !important;
+}
+
+/* Footer overlap fix when the theme sets fixed page heights */
+html,
+body,
+#page {
+  height: auto !important;
+  min-height: 100%;
+}
+
+/* UG-like decorative background strip and title underline */
+.sc-search-container,
+.sc-results-container,
+.sc-list-container,
+.sc-detail-container,
+.sc-forum,
+.sc-statistics-page,
+.sc-dashboard-page {
+  background-image: url('/themes/ug_theme/images/underslider_s.png');
+  background-repeat: no-repeat;
+  background-position: top center;
+}
+
+.block-page-title-block::after,
+.sc-search-header h1::after,
+.sc-results-title::after,
+.sc-list-title::after,
+.sc-detail-title::after {
+  content: "";
+  background-image: url('/themes/ug_theme/images/underline.svg');
+  display: block;
+  width: 82px;
+  height: 3px;
+  margin: 10px 0 40px;
+  background-repeat: no-repeat;
+}
+
+
+/* Site width lock */
+.sc-search-wrapper .container,
+.sc-results-container,
+.sc-list-container,
+.sc-detail-container,
+.sc-admin-panel,
+.sc-manage-users,
+.sc-edit-community,
+.sc-add-community,
+.sc-forum {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Manage users form consistency */
+.sc-manage-users form p {
+  max-width: 480px;
+}
+.sc-manage-users form input,
+.sc-manage-users form select,
+.sc-manage-users form button {
+  width: 100%;
+}
+.sc-manage-users form button + button {
+  margin-top: 8px;
+}
+
+/* Stronger width override for UG .col-lg-8 layouts */
+@media (min-width: 992px) {
+  body.sc-plugin-page .col-lg-8.sc-force-fullwidth-column,
+  body.sc-plugin-page .sc-plugin-row > .col-lg-8,
+  body.sc-plugin-page .sc-plugin-row > main.col-lg-8 {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* User management polished form controls */
+.sc-manage-users .sc-user-form p { max-width: 560px; }
+.sc-manage-users .sc-user-form input,
+.sc-manage-users .sc-user-form select { width: 100%; min-height: 42px; }
+.sc-manage-users .sc-user-form .button { width: auto; min-width: 180px; padding: 10px 16px; border-radius: 0; }
+.sc-manage-users .sc-assignment-form button + button { margin-left: 10px; margin-top: 0; }

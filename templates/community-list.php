@@ -1,0 +1,442 @@
+<?php
+/**
+ * Template for displaying a filterable list of all communities
+ *
+ * Shows all communities with interactive filters
+ */
+
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Get all available tags and faculties
+global $wpdb;
+$tags_table = $wpdb->prefix . 'science_tags';
+$faculties_table = $wpdb->prefix . 'science_faculties';
+
+$all_tags = $wpdb->get_results("SELECT id, tag_name FROM $tags_table ORDER BY tag_name ASC");
+$all_faculties = $wpdb->get_results("SELECT id, faculty_name FROM $faculties_table ORDER BY faculty_name ASC");
+
+// Get filter parameters
+$selected_tags = isset($_GET['filter_tags']) ? array_map('intval', (array)$_GET['filter_tags']) : array();
+$selected_faculties = isset($_GET['filter_faculties']) ? array_map('intval', (array)$_GET['filter_faculties']) : array();
+$search_term = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
+$sort_order = isset($_GET['sort']) ? sanitize_text_field($_GET['sort']) : 'name_asc';
+$status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : 'all';
+
+// Build query
+$communities_table = $wpdb->prefix . 'science_communities';
+$relationships_table = $wpdb->prefix . 'science_community_tags';
+
+$where_clauses = array();
+$join_clauses = "";
+
+// Status filter (exclude archived by default)
+if ($status_filter === 'all') {
+    $where_clauses[] = "c.is_archived = 0";
+} elseif ($status_filter === 'archived') {
+    $where_clauses[] = "c.is_archived = 1";
+} elseif ($status_filter === 'active') {
+    $where_clauses[] = "c.status = 'active' AND c.is_archived = 0";
+}
+
+// Search term
+if (!empty($search_term)) {
+    $search_like = '%' . $wpdb->esc_like($search_term) . '%';
+    $where_clauses[] = $wpdb->prepare(
+        "(c.name LIKE %s OR c.shortdescription LIKE %s)",
+        $search_like,
+        $search_like
+    );
+}
+
+// Faculty filter
+if (!empty($selected_faculties)) {
+    $faculty_placeholders = implode(',', array_fill(0, count($selected_faculties), '%d'));
+    $where_clauses[] = $wpdb->prepare(
+        "c.faculty_id IN ($faculty_placeholders)",
+        $selected_faculties
+    );
+}
+
+// Tag filter (communities must have ALL selected tags)
+if (!empty($selected_tags)) {
+    $tag_count = count($selected_tags);
+    $tag_placeholders = implode(',', array_fill(0, $tag_count, '%d'));
+
+    $where_clauses[] = $wpdb->prepare(
+        "c.community_id IN (
+            SELECT r.community_id
+            FROM $relationships_table AS r
+            WHERE r.tag_id IN ($tag_placeholders)
+            GROUP BY r.community_id
+            HAVING COUNT(DISTINCT r.tag_id) = %d
+        )",
+        array_merge($selected_tags, array($tag_count))
+    );
+}
+
+// Build final query
+$query = "SELECT c.* FROM $communities_table AS c";
+
+if (!empty($where_clauses)) {
+    $query .= " WHERE " . implode(" AND ", $where_clauses);
+}
+
+error_log('List query (before execution): ' . $query);
+
+// Add sorting
+switch ($sort_order) {
+    case 'name_desc':
+        $query .= " ORDER BY c.name DESC";
+        break;
+    case 'newest':
+        $query .= " ORDER BY c.created_at DESC";
+        break;
+    case 'oldest':
+        $query .= " ORDER BY c.created_at ASC";
+        break;
+    case 'name_asc':
+    default:
+        $query .= " ORDER BY c.name ASC";
+        break;
+}
+
+$communities = $wpdb->get_results($query);
+
+error_log('SQL Error: ' . $wpdb->last_error);
+error_log('Results count: ' . count($communities));
+if (!empty($communities)) {
+    error_log('First result: ' . print_r($communities[0], true));
+}
+error_log('==== END SEARCH DEBUG ====');
+
+// Get detail page URL
+$detail_page_url = sc_get_page_url_by_shortcode('science_community_detail', site_url('/details/'));
+$default_logo_url = 'https://kola.ug.edu.pl/wp-content/uploads/2026/05/deafultlogomain.png';
+?>
+
+<div class="sc-list-container">
+    <div class="sc-results-header sc-list-header">
+        <h1 class="sc-results-title"><?php echo esc_html(sc_t('directory_title')); ?></h1>
+        <p class="sc-list-header-description"><?php echo esc_html(sc_t('directory_description')); ?></p>
+        <?php sc_render_lang_toggle(); ?>
+    </div>
+
+    <div class="sc-list-filters">
+        <form method="get" class="sc-filter-form" id="sc-filter-form">
+            <!-- Search Section -->
+            <div class="sc-filter-section">
+                <label class="sc-filter-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <?php echo esc_html(sc_t('search_label')); ?>
+                </label>
+                <input
+                    type="text"
+                    name="filter_search"
+                    class="sc-filter-search"
+                    value="<?php echo esc_attr($search_term); ?>"
+                    placeholder="<?php echo esc_attr(sc_t('search_communities_placeholder')); ?>"
+                >
+            </div>
+
+            <!-- Sort Section -->
+            <div class="sc-filter-section">
+                <label class="sc-filter-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M7 12h10M10 18h4"></path>
+                    </svg>
+                    <?php echo esc_html(sc_t('sort_by')); ?>
+                </label>
+                <select name="sort" class="sc-filter-select">
+                    <option value="name_asc" <?php selected($sort_order, 'name_asc'); ?>>
+                        <?php echo esc_html(sc_t('sort_name_asc')); ?>
+                    </option>
+                    <option value="name_desc" <?php selected($sort_order, 'name_desc'); ?>>
+                        <?php echo esc_html(sc_t('sort_name_desc')); ?>
+                    </option>
+                    <option value="newest" <?php selected($sort_order, 'newest'); ?>>
+                        <?php echo esc_html(sc_t('sort_newest')); ?>
+                    </option>
+                    <option value="oldest" <?php selected($sort_order, 'oldest'); ?>>
+                        <?php echo esc_html(sc_t('sort_oldest')); ?>
+                    </option>
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="sc-filter-section">
+                <label class="sc-filter-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <?php echo esc_html(sc_t('status')); ?>
+                </label>
+                <select name="status" class="sc-filter-select">
+                    <option value="all" <?php selected($status_filter, 'all'); ?>>
+                        <?php echo esc_html(sc_t('status_active_communities')); ?>
+                    </option>
+                    <option value="active" <?php selected($status_filter, 'active'); ?>>
+                        <?php echo esc_html(sc_t('status_active_only')); ?>
+                    </option>
+                    <option value="archived" <?php selected($status_filter, 'archived'); ?>>
+                        <?php echo esc_html(sc_t('status_archived')); ?>
+                    </option>
+                </select>
+            </div>
+
+            <?php if (!empty($all_tags)): ?>
+            <div class="sc-filter-section">
+                <label class="sc-filter-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    <?php echo esc_html(sc_t('filter_by_tags')); ?>
+                </label>
+                <div class="sc-tag-filter-controls">
+                    <label for="sc-list-tag-filter-search" class="screen-reader-text"><?php echo esc_html(sc_t('search_tags_label')); ?></label>
+                    <input type="search" id="sc-list-tag-filter-search" class="sc-tag-filter-search" placeholder="<?php echo esc_attr(sc_t('search_tags_placeholder')); ?>">
+                    <button type="button" class="sc-tags-expand-toggle" id="sc-list-tags-expand-toggle" aria-expanded="false"><?php echo esc_html(sc_t('show_all_tags')); ?></button>
+                </div>
+                <div class="sc-filter-tags sc-tags-collapsible" id="sc-list-tags-grid">
+                    <?php foreach ($all_tags as $tag): ?>
+                    <label class="sc-filter-tag-item <?php echo in_array($tag->id, $selected_tags) ? 'selected' : ''; ?>">
+                        <input
+                            type="checkbox"
+                            name="filter_tags[]"
+                            value="<?php echo esc_attr($tag->id); ?>"
+                            <?php checked(in_array($tag->id, $selected_tags)); ?>
+                        >
+                        <span><?php echo esc_html($tag->tag_name); ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($all_faculties)): ?>
+            <div class="sc-filter-section">
+                <label class="sc-filter-label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <?php echo esc_html(sc_t('filter_by_faculty')); ?>
+                </label>
+                <div class="sc-filter-faculties">
+                    <?php foreach ($all_faculties as $faculty): ?>
+                    <label class="sc-filter-faculty-item <?php echo in_array($faculty->id, $selected_faculties) ? 'selected' : ''; ?>">
+                        <input
+                            type="checkbox"
+                            name="filter_faculties[]"
+                            value="<?php echo esc_attr($faculty->id); ?>"
+                            <?php checked(in_array($faculty->id, $selected_faculties)); ?>
+                        >
+                        <span><?php echo esc_html($faculty->faculty_name); ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div class="sc-filter-actions">
+                <button type="submit" class="sc-filter-apply">
+                    <?php echo esc_html(sc_t('apply_filters')); ?>
+                </button>
+                <button type="button" class="sc-filter-clear" id="sc-filter-clear">
+                    <?php echo esc_html(sc_t('clear_all')); ?>
+                </button>
+            </div>
+        </form>
+
+        <div class="sc-filter-summary">
+            <span class="sc-result-count">
+                <?php
+                printf(
+                    _n(
+                        sc_t('community_found'),
+                        sc_t('communities_found'),
+                        count($communities),
+                        'science-communities'
+                    ),
+                    '<strong>' . number_format_i18n(count($communities)) . '</strong>'
+                );
+                ?>
+            </span>
+
+            <?php if (!empty($selected_tags) || !empty($selected_faculties) || !empty($search_term) || $sort_order !== 'name_asc' || $status_filter !== 'all'): ?>
+            <span class="sc-active-filters-count">
+                <?php
+                $filter_count = count($selected_tags) + count($selected_faculties) + (!empty($search_term) ? 1 : 0);
+                if ($sort_order !== 'name_asc') $filter_count++;
+                if ($status_filter !== 'all') $filter_count++;
+                printf(
+                    _n(
+                        sc_t('active_filter'),
+                        sc_t('active_filters_count'),
+                        $filter_count,
+                        'science-communities'
+                    ),
+                    $filter_count
+                );
+                ?>
+            </span>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php if (empty($communities)): ?>
+    <div class="sc-no-results">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <h3><?php echo esc_html(sc_t('no_communities_found')); ?></h3>
+        <p><?php echo esc_html(sc_t('adjust_filters_hint')); ?></p>
+    </div>
+    <?php else: ?>
+    <div class="sc-list-grid">
+        <?php foreach ($communities as $community):
+            $tags = sc_get_community_tags($community->community_id);
+            $logo_url = !empty($community->logo) ? $community->logo : $default_logo_url;
+        ?>
+        <div class="sc-list-card">
+            <div class="sc-card-logo">
+                <img src="<?php echo esc_url($logo_url); ?>"
+                     alt="<?php echo esc_attr(sprintf(sc_t('logo_of'), $community->name)); ?>">
+            </div>
+
+            <div class="sc-card-content">
+                <h3 class="sc-card-title">
+                    <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>">
+                        <?php echo esc_html($community->name); ?>
+                    </a>
+                </h3>
+
+                <?php
+                $fallback_short = sc_get_lang() === 'en'
+                    ? 'Science Community At the University of Gdańsk'
+                    : 'Koło Naukowe Uniwersytetu Gdańskiego';
+                $shortdescription = !empty($community->shortdescription) ? $community->shortdescription : $fallback_short;
+                if (!empty($shortdescription)):
+                ?>
+                <p class="sc-card-description">
+                    <?php echo esc_html(wp_trim_words($shortdescription, 20)); ?>
+                </p>
+                <?php endif; ?>
+
+                <?php if (!empty($tags)): ?>
+                <div class="sc-card-tags">
+                    <?php foreach (array_slice($tags, 0, 3) as $tag): ?>
+                    <span class="sc-card-tag"><?php echo esc_html($tag->tag_name); ?></span>
+                    <?php endforeach; ?>
+                    <?php if (count($tags) > 3): ?>
+                    <span class="sc-card-tag-more">+<?php echo count($tags) - 3; ?></span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="sc-card-footer">
+                <?php if (!empty($community->contact_email) && !empty($community->open_for_applications)): ?>
+                <button type="button" class="sc-apply-button" data-community-id="<?php echo esc_attr($community->community_id); ?>"><?php echo esc_html(sc_t('apply_to_join')); ?></button>
+                <?php endif; ?>
+                <a href="<?php echo esc_url(add_query_arg('id', $community->community_id, $detail_page_url)); ?>"
+                   class="sc-card-link">
+                    <?php echo esc_html(sc_t('view_details')); ?>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                </a>
+
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+</div>
+<div class="sc-apply-modal" id="sc-apply-modal" aria-hidden="true" style="display:none;">
+    <div class="sc-apply-modal-content" role="dialog" aria-modal="true" aria-labelledby="sc-apply-modal-title">
+        <button type="button" class="sc-apply-close" id="sc-apply-close" aria-label="<?php echo esc_attr(sc_t('close_modal')); ?>">&times;</button>
+        <h3 id="sc-apply-modal-title"><?php echo esc_html(sc_t('apply_to_this_community')); ?></h3>
+        <form id="sc-apply-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="sc_submit_join_application">
+            <?php wp_nonce_field('sc_join_application', 'sc_join_application_nonce'); ?>
+            <input type="hidden" name="community_id" id="sc-apply-community-id">
+            <div class="sc-apply-field-row">
+                <label><span><?php echo esc_html(sc_t('name')); ?></span><input type="text" name="applicant_name" required></label>
+                <label><span><?php echo esc_html(sc_t('surname')); ?></span><input type="text" name="applicant_surname"></label>
+            </div>
+            <label><span><?php echo esc_html(sc_t('email')); ?></span><input type="email" name="applicant_email" required></label>
+            <label><span><?php echo esc_html(sc_t('additional_contact_info')); ?></span><textarea name="applicant_contact"></textarea></label>
+            <label><span><?php echo esc_html(sc_t('tell_us_about_yourself')); ?></span><textarea name="applicant_info" required></textarea></label>
+            <button type="submit" class="sc-search-button"><?php echo esc_html(sc_t('send_application')); ?></button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tagSearch = document.getElementById('sc-list-tag-filter-search');
+    const tagGrid = document.getElementById('sc-list-tags-grid');
+    const tagToggle = document.getElementById('sc-list-tags-expand-toggle');
+    if (tagSearch && tagGrid) {
+        tagSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            tagGrid.querySelectorAll('.sc-filter-tag-item').forEach(function(label) {
+                label.style.display = label.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+    }
+    if (tagToggle && tagGrid) {
+        tagToggle.addEventListener('click', function() {
+            const expanded = tagGrid.classList.toggle('is-expanded');
+            tagToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            tagToggle.textContent = expanded ? '<?php echo esc_js(sc_t('collapse_tags')); ?>' : '<?php echo esc_js(sc_t('show_all_tags')); ?>';
+        });
+    }
+    const modal = document.getElementById('sc-apply-modal');
+    const closeBtn = document.getElementById('sc-apply-close');
+    const communityInput = document.getElementById('sc-apply-community-id');
+    document.querySelectorAll('.sc-apply-button').forEach(btn=>btn.addEventListener('click',()=>{
+        if (communityInput) communityInput.value=btn.dataset.communityId || '';
+        if (modal) { modal.style.display='flex'; modal.setAttribute('aria-hidden','false'); }
+    }));
+    function closeModal(){ if (modal) { modal.style.display='none'; modal.setAttribute('aria-hidden','true'); } }
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', event=>{ if (event.target === modal) closeModal(); });
+    // Handle filter checkbox styling
+    const checkboxes = document.querySelectorAll('.sc-filter-tag-item input, .sc-filter-faculty-item input');
+    checkboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            this.closest('label').classList.toggle('selected', this.checked);
+        });
+    });
+
+    // Handle clear filters
+    document.getElementById('sc-filter-clear').addEventListener('click', function() {
+        document.querySelectorAll('.sc-filter-form input[type="checkbox"]').forEach(function(cb) {
+            cb.checked = false;
+            cb.closest('label').classList.remove('selected');
+        });
+        document.querySelector('.sc-filter-search').value = '';
+        document.getElementById('sc-filter-form').submit();
+    });
+
+    // Auto-submit on filter change (optional - remove if you prefer manual apply)
+    document.querySelectorAll('.sc-filter-form input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            // Uncomment the line below to auto-submit on change
+            // document.getElementById('sc-filter-form').submit();
+        });
+    });
+});
+</script>

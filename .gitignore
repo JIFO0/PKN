@@ -1,0 +1,15 @@
+.git/
+.vs/
+..test/
+.ignore/
+.vscode/
+.builds/old/
+#wildcard ahh shit
+.git/*
+.vs/*
+..test/*
+.ignore/*
+.vscode/*
+.dist/*
+.builds/old/*
+**/*.zip

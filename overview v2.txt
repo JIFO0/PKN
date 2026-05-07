@@ -1,0 +1,138 @@
+Overview v2 — Active PKN Backend / Science Communities Platform
+Last documentation refresh: 2026-05-07
+Current plugin version in code: Alpha 0.956 / SC_PLUGIN_VERSION 0.956
+
+The PKN Backend is an active WordPress plugin for cataloging, searching, administering, importing, exporting, and monitoring science communities. It is not only a public directory: it now includes a front-facing discovery layer, a WordPress-admin governance layer, a shortcode-based admin panel, role assignment for individual community admins, import/update history, CSV exports, statistics, forum communication, contact/application workflows, media handling, and a GitHub-backed update system.
+
+Primary goals:
+- Make science communities discoverable through public search, filters, list cards, and detail profiles.
+- Give community admins a controlled place to edit the communities assigned to them.
+- Give superadmins global tools for governance, data cleanup, imports, exports, bulk actions, update checks, user assignment, statistics, and moderation.
+- Keep inactive, limited, suspended, and archived communities visible or controllable in a consistent lifecycle model.
+- Support data migration from legacy tables through flexible CSV-style imports and stable exports.
+
+1. Public users can:
+- Browse all non-hidden science communities through list/search pages.
+- Search by community name, short description, and long description.
+- Use fuzzy search for longer terms and exact LIKE search when fuzzy search is not suitable.
+- Filter by tags, faculty, and open-for-applications status.
+- Open each community detail page by public 5-character community_id.
+- See descriptions, logo, social links, status, application/contact surfaces, and gallery-like image sections where available.
+- Trigger tracked events such as views, social clicks, and search-term matches.
+
+2. Community admins can:
+- Access the external shortcode admin panel when logged in.
+- Edit only communities connected with their role or relationship.
+- Update name, short description, rich long description, website/social links, other links, logo, contact email, application availability, faculty, status, tags, and image groups.
+- Submit contact/removal/general requests to superadmins.
+- Participate in the internal forum if they have any community-admin access.
+
+3. Superadmins can:
+- Create communities and register dedicated community admin roles.
+- Edit every community and manage archive flags.
+- Use the WordPress admin PKN pages for imports, exports, user management, contact requests, dashboards, statistics, tags/faculties, social sync settings, and plugin updates.
+- Run bulk community actions: delete, archive, unarchive, status change, faculty change, add tags, and remove tags.
+- Import bulk data, review import logs, and keep an update-history audit trail.
+- Export communities and community-admin account mappings as pipe-delimited CSV files.
+- Check the GitHub update manifest and run a manual update from packaged builds.
+
+Active architecture:
+- Entry point: PKN-backend.php registers constants, activation/deactivation hooks, page recovery, shortcodes, AJAX handlers, admin-post handlers, admin menus, assets, and update hooks.
+- Public data functions: includes/functions.php handles search, fuzzy matching, community retrieval, tag normalization, tag relationships, create/update/delete helpers, faculty/status display, and page lookup by shortcode.
+- Admin logic: includes/admin-functions.php handles edit permissions, saving, role registration, upload limits, import parsing, import logs, import/update history, image persistence, and contact requests.
+- Authentication: includes/auth.php defines superadmin detection, community admin checks, user/community assignment, admin-panel access, and login helpers.
+- Statistics: includes/statistics.php creates the statistics table and tracks views, social clicks, search-term hits, tag usage, dashboard data, and scoped statistics.
+- Forum: includes/forum.php creates forum tables, ensures a General Chat thread, gates access, paginates threads, handles AJAX messaging, upload, edit, delete, close, and report actions.
+- Updater: includes/updater.php checks GitHub release/build metadata, compares versions, exposes plugin-info details, normalizes install directories, and runs manual WordPress plugin upgrades.
+- Language: includes/lang.php controls PL/EN language state, translations, and the language toggle shortcode.
+
+Built-in pages and shortcodes created/repaired by the plugin:
+- /sc-search -> [science_communities_search]
+- /results -> [science_communities_results]
+- /detail -> [science_community_detail]
+- /sc-admin -> [science_communities_admin]
+- /sc-list -> [science_communities_list]
+- /community-statistics -> [science_communities_statistics]
+- /sc-forum -> [science_communities_forum]
+- Extra registered shortcodes include [science_communities_add], [science_communities_debug], and [sc_lang_header_toggle].
+
+Current database tables managed by activation/schema upgrade:
+- wp_science_communities: core community records and lifecycle fields.
+- wp_science_faculties: faculty taxonomy.
+- wp_science_tags: tag taxonomy.
+- wp_science_community_tags: many-to-many community/tag relationships.
+- wp_science_community_user_roles: explicit user/community role records.
+- wp_science_communities_audit: generic audit trail table.
+- wp_science_communities_error_log: plugin error log table.
+- wp_science_community_applications: public join/application submissions.
+- wp_science_community_uploads: upload tracking.
+- wp_science_communities_update_history: import/update-history records.
+- wp_science_community_statistics: event tracking.
+- wp_science_community_images: categorized event/team/gallery images.
+- wp_science_contact_requests: requests from community admins to superadmins.
+- wp_science_forum_threads and wp_science_forum_messages: internal forum.
+
+Current import support (important update):
+The admin screen still says “Excel”, but the server-side importer currently reads the uploaded file with PHP CSV parsing. It accepts .csv, .xlsx, and .xls at the upload field level, but the reliable and recommended format is UTF-8 CSV, preferably pipe-delimited. The parser auto-detects delimiters from comma, semicolon, tab, and pipe. It strips UTF-8 BOMs, normalizes headers, skips empty rows, rejects rows without name, rejects rows where community_id is exactly 0, updates by community_id when present, and falls back to matching by name for legacy files.
+
+Supported import table headers and aliases:
+- community_id: optional for legacy imports, but recommended; five-character IDs are used when present; value 0 is skipped.
+- name: required. Aliases: nazwa, nazwa_kola, community_name.
+- shortdescription: optional. Aliases: short_description, opis_krotki.
+- description: optional. Alias: opis.
+- faculty: optional. Aliases: faculty_name, wydzial. New faculty names are created automatically.
+- webpage: optional. Aliases: www, strona, strona_www.
+- facebook, instagram, tiktok, discord: optional URL fields.
+- other_links: optional. Aliases: inne, other. Multiple URLs can be comma-separated or newline-separated.
+- contact_email: optional. Aliases: mail, email.
+- logo: optional URL field.
+- tags: optional. Supported separators: pipe, comma, semicolon, and slash.
+- status: optional. Numeric mapping: negative = archived/suspended, 0 = suspended, between 0 and 1 = limited, 1 or greater = active. Text mapping: active, limited, suspended, inactive.
+
+Recommended export/import format:
+community_id|name|shortdescription|description|faculty|webpage|facebook|instagram|discord|inne|mail|logo|tags|status
+ABCDE|Example Science Club|Short text|Long text|Wydział Matematyki, Fizyki i Informatyki|https://example.edu|https://facebook.com/example|https://instagram.com/example|https://discord.gg/example|https://example.edu/extra|club@example.edu|https://example.edu/logo.png|AI, Robotics, Data|1
+
+Important operational notes:
+- Superadmin creation goes through sc_save_community/sc_create_community and creates or uses a random 5-letter community_id when needed.
+- Dedicated WordPress roles use the pattern COMMUNITY-admin, for example ABCDE-admin.
+- Guest menus hide protected pages such as forum, statistics, and admin.
+- Plugin pages are recovered on activation and admin schema checks, so shortcode page deletion can be repaired.
+- Imports write to uploads/sc-community-import.log and update wp_science_communities_update_history.
+- Community exports use pipe-delimited CSV and represent archived status as -1, active as 1, limited as 0.5, and suspended/other non-active as 0.
+- The GitHub update flow reads latest release/build data and compares it with the installed plugin version.
+
+Active file structure:
+PKN/
+├── PKN-backend.php
+│   Main plugin entry point; registers hooks, tables, pages, shortcodes, admin menus, AJAX/admin-post handlers, exports, imports, assets, and updater integration.
+├── includes/
+│   ├── functions.php — search, retrieval, tags, faculties/status helpers, CRUD helpers, shortcode page lookup.
+│   ├── admin-functions.php — permissions, save logic, upload controls, import parser, update history, images, contact requests.
+│   ├── auth.php — superadmin/community-admin authorization and assignment helpers.
+│   ├── statistics.php — statistics schema and event/dashboard/statistics queries.
+│   ├── forum.php — internal forum schema, access checks, thread/message AJAX.
+│   ├── lang.php — PL/EN state and translation lookup.
+│   ├── error-logger.php — error logging support.
+│   └── updater.php — GitHub/WordPress plugin update integration.
+├── templates/
+│   ├── search-form.php, search-results.php, community-list.php, community-detail.php — public surfaces.
+│   ├── admin-panel.php, dashboard.php, admin-communities-list.php — admin overview and governance.
+│   ├── add-community.php, edit-community.php — community editing forms.
+│   ├── admin-import.php — import/export/update history/update UI.
+│   ├── manage-users.php, contact-requests.php, admin-tags-faculties.php — operational admin tools.
+│   ├── community-statistics.php — statistics UI.
+│   ├── forum.php — forum UI.
+│   └── debug-info.php — debug/support UI.
+├── assets/
+│   ├── css/ — public, admin, forum, list, detail, result, search, global and layout styles.
+│   ├── js/ — public/admin/forum/layout scripts.
+│   └── images/underline.svg — UG-style underline asset.
+├── lang/ — English and Polish translation arrays.
+├── builds/ — packaged plugin ZIP and latest.json build metadata.
+└── build scripts — Package-build.sh and build.ps1.
+
+Documentation direction:
+- Keep this overview short enough for quick orientation but active enough to reflect the current codebase.
+- Use Doc.md as the comprehensive operational and internal technical guide.
+- Update both files whenever import columns, database tables, roles, shortcodes, update behavior, statistics, forum, or public/admin routes change.
