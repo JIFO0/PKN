@@ -13,7 +13,11 @@ global $wpdb;
 $tags_table = $wpdb->prefix . 'science_tags';
 $faculties_table = $wpdb->prefix . 'science_faculties';
 
-$tags = $wpdb->get_results("SELECT * FROM $tags_table ORDER BY tag_name ASC");
+if (function_exists('sc_cleanup_orphan_tags')) {
+    sc_cleanup_orphan_tags();
+}
+$rel_table = $wpdb->prefix . 'science_community_tags';
+$tags = $wpdb->get_results("SELECT DISTINCT t.* FROM $tags_table AS t INNER JOIN $rel_table AS r ON t.id = r.tag_id ORDER BY t.tag_name ASC");
 $faculties = $wpdb->get_results("SELECT * FROM $faculties_table ORDER BY faculty_name ASC");
 ?>
 

@@ -883,7 +883,10 @@ function sc_import_from_excel($file_path, $args = array()) {
         'communities_updated' => $updated_count,
         'communities_deleted' => 0,
         'communities_skipped' => $skipped_count,
-        'notes' => sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id),
+        'notes' => trim((string) ($args['upload_info'] ?? '')) !== ''
+            ? trim((string) ($args['upload_info'] ?? '')) . "
+" . sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id)
+            : sprintf(__('Processed rows: %d. Skipped without name: %d. Skipped with community_id 0: %d.', 'science-communities'), $processed_rows, $skipped_missing_name, $skipped_zero_id),
     ));
     
     return array('success' => true, 'count' => $imported_count, 'created' => $imported_count, 'updated' => $updated_count, 'deleted' => 0, 'skipped' => $skipped_count);

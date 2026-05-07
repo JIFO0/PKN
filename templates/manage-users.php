@@ -14,6 +14,7 @@ if (!sc_is_superadmin()) {
 $success_message = '';
 $error_message = '';
 $import_console = array();
+$action_notes = '';
 $communities = sc_get_editable_communities();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
@@ -24,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
         $email = sanitize_email($_POST['email'] ?? '');
         $community_id = sanitize_text_field($_POST['community_id'] ?? '');
         $password_raw = (string) ($_POST['password'] ?? '');
+        $action_notes = sanitize_textarea_field($_POST['action_info'] ?? '');
 
         if (empty($username) || empty($email) || empty($community_id)) {
             $error_message = __('All fields are required.', 'science-communities');
@@ -47,6 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_add_admin'])) {
                 $error_message = $user_id->get_error_message();
             } elseif ($user_id) {
                 sc_assign_community_admin($user_id, $community_id);
+                sc_record_update_history(array(
+                    'action' => 'user_created_assigned',
+                    'communities_updated' => 1,
+                    'notes' => trim(sprintf('User %s (%s) assigned to %s. %s', $username, $email, $community_id, $action_notes)),
+                ));
                 $success_message = __('User saved and assigned successfully.', 'science-communities');
             }
         }
@@ -59,8 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
     } elseif (empty($_FILES['users_csv']['tmp_name'])) {
         $error_message = __('Please provide a CSV file.', 'science-communities');
     } else {
+        $action_notes = sanitize_textarea_field($_POST['import_info'] ?? '');
         $handle = fopen($_FILES['users_csv']['tmp_name'], 'r');
         $row = 0;
+        $skipped_count = 0;
         $created_count = 0;
         $assigned_count = 0;
         $delimiter = sc_detect_csv_delimiter($_FILES['users_csv']['tmp_name']);
@@ -96,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
             $csv_password = isset($row_data['password']) ? trim((string) $row_data['password']) : '';
 
             if (empty($username) || empty($email) || empty($community_id)) {
+                $skipped_count++;
                 $import_console[] = sprintf('Row %d skipped: missing username/email/community_id.', $row);
                 continue;
             }
@@ -124,6 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_import_admin_csv']
             }
         }
         fclose($handle);
+        sc_record_update_history(array(
+            'action' => 'users_import',
+            'filename' => basename($_FILES['users_csv']['name'] ?? ''),
+            'communities_created' => $created_count,
+            'communities_updated' => $assigned_count,
+            'communities_skipped' => $skipped_count,
+            'notes' => trim($action_notes . "
+" . implode("
+", array_slice($import_console, -20))),
+        ));
         $success_message = sprintf(__('CSV processed. Created: %d, Assigned: %d', 'science-communities'), $created_count, $assigned_count);
     }
 }
@@ -150,6 +170,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_delete_user'])) {
             } else {
                 require_once ABSPATH . 'wp-admin/includes/user.php';
                 wp_delete_user($user_id);
+                sc_record_update_history(array(
+                    'action' => 'user_deleted',
+                    'communities_deleted' => 1,
+                    'notes' => sprintf('Deleted user ID %d (%s).', $user_id, $user->user_email),
+                ));
                 $success_message = __('User deleted.', 'science-communities');
             }
         }
@@ -164,16 +189,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_manage_assignment'
         $selected_user_id = intval($_POST['selected_user_id'] ?? 0);
         $selected_community_id = sanitize_text_field($_POST['selected_community_id'] ?? '');
         $action_type = sanitize_text_field($_POST['assignment_action'] ?? '');
+        $action_notes = sanitize_textarea_field($_POST['assignment_info'] ?? '');
 
         if (!$selected_user_id || empty($selected_community_id) || !in_array($action_type, array('assign', 'unassign'), true)) {
             $error_message = __('Please select a user, a community, and action.', 'science-communities');
         } elseif ($action_type === 'assign') {
             sc_assign_community_admin($selected_user_id, $selected_community_id);
+            sc_record_update_history(array(
+                'action' => 'user_assigned',
+                'communities_updated' => 1,
+                'notes' => trim(sprintf('Assigned user ID %d to %s. %s', $selected_user_id, $selected_community_id, $action_notes)),
+            ));
             $success_message = __('Assignment saved.', 'science-communities');
         } else {
             $user = get_user_by('id', $selected_user_id);
             if ($user) {
                 $user->remove_role($selected_community_id . '-admin');
+                sc_record_update_history(array(
+                    'action' => 'user_unassigned',
+                    'communities_updated' => 1,
+                    'notes' => trim(sprintf('Removed user ID %d from %s. %s', $selected_user_id, $selected_community_id, $action_notes)),
+                ));
                 $success_message = __('Assignment removed.', 'science-communities');
             }
         }
@@ -199,6 +235,25 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
     </div>
     <?php endif; ?>
 
+    <div class="card" style="max-width: 1000px; margin: 20px 0;">
+        <h2><?php _e('User action history', 'science-communities'); ?></h2>
+        <?php
+        global $wpdb;
+        $history_table = $wpdb->prefix . 'science_communities_update_history';
+        $user_history = $wpdb->get_results("SELECT * FROM $history_table WHERE action LIKE 'user_%' OR action = 'users_import' ORDER BY created_at DESC LIMIT 25", ARRAY_A);
+        ?>
+        <table class="wp-list-table widefat fixed striped">
+            <thead><tr><th><?php _e('Date', 'science-communities'); ?></th><th><?php _e('Actor', 'science-communities'); ?></th><th><?php _e('Action', 'science-communities'); ?></th><th><?php _e('Info', 'science-communities'); ?></th></tr></thead>
+            <tbody>
+                <?php if (empty($user_history)): ?>
+                    <tr><td colspan="4"><?php _e('No user-management history yet.', 'science-communities'); ?></td></tr>
+                <?php else: foreach ($user_history as $entry): ?>
+                    <tr><td><?php echo esc_html($entry['created_at']); ?></td><td><?php echo esc_html($entry['actor_name']); ?></td><td><?php echo esc_html($entry['action']); ?></td><td><pre style="white-space:pre-wrap;margin:0;"><?php echo esc_html($entry['notes']); ?></pre></td></tr>
+                <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+
     <form method="post" class="sc-add-admin-form sc-user-form">
         <?php wp_nonce_field('sc_add_admin', 'sc_add_admin_nonce'); ?>
         <input type="hidden" name="sc_add_admin" value="1">
@@ -207,6 +262,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
         <p><input type="text" name="username" placeholder="<?php echo esc_attr(sc_t('username')); ?>" required></p>
         <p><input type="email" name="email" placeholder="<?php echo esc_attr(sc_t('email')); ?>" required></p>
         <p><input type="text" name="password" placeholder="<?php echo esc_attr(sc_t('password_optional')); ?>"></p>
+        <p><textarea name="action_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this action', 'science-communities'); ?>"></textarea></p>
         <p>
             <input type="text" id="sc-community-search" placeholder="Search community..." style="width: 320px;">
             <select name="community_id" id="sc-community-select" required>
@@ -231,6 +287,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
         <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin.php?page=pkn-manage-users&sc_export_accounts=1'), 'sc_export_accounts')); ?>"><?php _e('Export users CSV', 'science-communities'); ?></a></p>
         <p><?php _e('CSV format: username,email,community_id,password(optional)', 'science-communities'); ?></p>
         <p><input type="file" name="users_csv" accept=".csv" required></p>
+        <p><textarea name="import_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this user import', 'science-communities'); ?>"></textarea></p>
         <button type="submit" class="button"><?php _e('Import CSV', 'science-communities'); ?></button>
     </form>
 
@@ -261,6 +318,7 @@ $users = get_users(array('orderby' => 'display_name', 'order' => 'ASC'));
                 <?php endforeach; ?>
             </select>
         </p>
+        <p><textarea name="assignment_info" rows="2" class="large-text" placeholder="<?php esc_attr_e('Optional info about this assignment change', 'science-communities'); ?>"></textarea></p>
         <p>
             <button type="submit" name="assignment_action" value="assign" class="button button-primary"><?php echo esc_html(sc_t('assign')); ?></button>
             <button type="submit" name="assignment_action" value="unassign" class="button"><?php echo esc_html(sc_t('unassign')); ?></button>

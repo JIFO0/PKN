@@ -136,6 +136,8 @@ $all_tags = sc_get_all_tags();
                     </label>
                 <?php endforeach; ?>
             </div>
+            <input type="text" name="new_tags" class="regular-text" placeholder="<?php echo esc_attr__('Add new tags, separated by commas', 'science-communities'); ?>">
+            <p class="description"><?php echo esc_html__('New tags are saved only when this community uses them, so unused tags are not kept.', 'science-communities'); ?></p>
         </div>
 
         <div class="sc-form-group">

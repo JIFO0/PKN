@@ -110,7 +110,7 @@ function sc_search_communities($search_term = '', $tags = array(), $fuzzy = true
         // Handle numeric tag IDs or tag names
         $tags = sc_normalize_tags_input($tags);
 
-    foreach ($tags as $tag) {
+        foreach ($tags as $tag) {
             if (is_numeric($tag)) {
                 $tag_conditions[] = $wpdb->prepare("t.id = %d", $tag);
             } else {
@@ -366,12 +366,28 @@ function sc_get_community_tags($community_id) {
  */
 function sc_get_all_tags() {
     global $wpdb;
-    
+     if (function_exists('sc_cleanup_orphan_tags')) {
+        sc_cleanup_orphan_tags();
+    }
     $tags_table = $wpdb->prefix . 'science_tags';
-    
-    $query = "SELECT id, tag_name FROM $tags_table ORDER BY tag_name ASC";
+    $relationships_table = $wpdb->prefix . 'science_community_tags';
+    $query = "SELECT DISTINCT t.id, t.tag_name
+        FROM $tags_table AS t
+        INNER JOIN $relationships_table AS r ON t.id = r.tag_id
+        ORDER BY t.tag_name ASC";
     
     return $wpdb->get_results($query);
+}
+
+function sc_cleanup_orphan_tags() {
+    global $wpdb;
+
+    $tags_table = $wpdb->prefix . 'science_tags';
+    $relationships_table = $wpdb->prefix . 'science_community_tags';
+    $communities_table = $wpdb->prefix . 'science_communities';
+
+    $wpdb->query("DELETE r FROM $relationships_table AS r LEFT JOIN $communities_table AS c ON r.community_id = c.community_id WHERE c.community_id IS NULL");
+    return (int) $wpdb->query("DELETE t FROM $tags_table AS t LEFT JOIN $relationships_table AS r ON t.id = r.tag_id WHERE r.tag_id IS NULL");
 }
 
 /**
@@ -563,6 +579,7 @@ function sc_update_community_tags($community_id, $tags) {
     );
     
     $tags = sc_normalize_tags_input($tags);
+    $used_tag_ids = array();
 
     foreach ($tags as $tag) {
         $tag_id = null;
@@ -604,7 +621,7 @@ function sc_update_community_tags($community_id, $tags) {
         }
         
         // Add the relationship
-        if ($tag_id) {
+        if ($tag_id && !in_array((int) $tag_id, $used_tag_ids, true)) {
             $wpdb->insert(
                 $relationships_table,
                 array(
@@ -612,9 +629,10 @@ function sc_update_community_tags($community_id, $tags) {
                     'tag_id' => $tag_id
                 )
             );
+            $used_tag_ids[] = (int) $tag_id;
         }
     }
-    
+    sc_cleanup_orphan_tags();
     return true;
 }
 
@@ -629,12 +647,14 @@ function sc_delete_community($community_id) {
     
     $communities_table = $wpdb->prefix . 'science_communities';
     
-    // Delete the community (relationships will be deleted via foreign key constraints)
+    $relationships_table = $wpdb->prefix . 'science_community_tags';
+
+    $wpdb->delete($relationships_table, array('community_id' => $community_id));
     $result = $wpdb->delete(
         $communities_table,
         array('community_id' => $community_id)
     );
-    
+    sc_cleanup_orphan_tags();
     return $result !== false;
 }
 
@@ -772,10 +792,12 @@ add_action('wp_ajax_sc_import_communities', function() {
 
     // Give it time to finish large files
     set_time_limit(120);
+    $upload_info = isset($_POST['upload_info']) ? sanitize_textarea_field(wp_unslash($_POST['upload_info'])) : '';
 
     $imported = sc_import_from_excel($movefile['file'], [
         'actor_name' => $importer_name,
         'filename' => basename($_FILES['excel_file']['name'] ?? $movefile['file']),
+        'upload_info' => $upload_info,
     ]);
     @unlink($movefile['file']);
 

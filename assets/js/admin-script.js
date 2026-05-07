@@ -193,10 +193,10 @@ jQuery(document).ready(function($) {
         }).done(function(response) {
             if (response.success) {
                 var d = response.data.data || {};
-                if (d.picture_url) { $('#sc-logo').val(d.picture_url); updateLogoPreview(d.picture_url); }
+                if (d.picture_url && !$('#sc-logo').val()) { $('#sc-logo').val(d.picture_url); updateLogoPreview(d.picture_url); }
                 if (d.about && !$('#sc-shortdescription').val()) { $('#sc-shortdescription').val(d.about); }
                 if (d.description && !$('#sc-description').val()) { $('#sc-description').val(d.description); }
-                $status.text('Facebook data fetched. Save the form to persist changes.');
+                $status.text(response.data.message || 'Facebook data fetched. Existing filled fields were skipped.');
             } else {
                 $status.text(response.data || 'Could not fetch Facebook data.');
             }

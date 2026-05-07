@@ -653,3 +653,26 @@
 .sc-home-request-text {
     padding-bottom: 20px;
 }
+
+.sc-home-card .sc-search-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+@media (max-width: 480px) {
+    .sc-home-card .sc-search-button {
+        display: flex;
+        width: fit-content;
+        min-width: min(220px, 100%);
+        margin: 0 auto;
+        padding: 12px 18px;
+        overflow-wrap: anywhere;
+    }
+}

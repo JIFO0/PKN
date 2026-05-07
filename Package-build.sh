@@ -21,21 +21,21 @@ ZIP_PATH="$BUILDS_DIR/$ZIP_NAME"
 
 rm -f "$ZIP_PATH"
 
-rsync -a --delete \
-  --exclude '.git' \
-  --exclude '.dist' \
-  --exclude 'builds' \
-  --exclude 'Package-build.sh' \
-  --exclude 'build.ps1' \
-  --exclude 'overwiew v2.txt' \
-  --exclude 'overview v2.txt' \
-  --exclude '.gitignore' \
-  --exclude '..test' \
-  --exclude '.ignore' \
-  --exclude '.vs' \
-  --exclude '.vscode' \
-  --exclude '*.zip' \
-  "$ROOT_DIR/" "$DIST_DIR/pkn-backend/"
+rDEST_DIR="$DIST_DIR/pkn-backend"
+rm -rf "$DEST_DIR"
+mkdir -p "$DEST_DIR"
+
+cp "$PLUGIN_MAIN" "$DEST_DIR/PKN-backend.php"
+for folder in templates lang includes assets; do
+  if [[ -d "$ROOT_DIR/$folder" ]]; then
+    cp -R "$ROOT_DIR/$folder" "$DEST_DIR/$folder"
+  else
+    echo "WARNING: Folder not found, skipping: $folder" >&2
+  fi
+done
+
+find "$DEST_DIR" -type d \( -name '.vs' -o -name '.vscode' \) -prune -exec rm -rf {} +
+find "$DEST_DIR" -type f \( -name '*.slnx' -o -name '*.suo' -o -name '*.user' -o -name '*.vsidx' \) -delete
 
 (
   cd "$DIST_DIR"

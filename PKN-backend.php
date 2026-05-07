@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PKN Backend
  * Description: Plugin do zarządzania kołami naukowymi na PKN
- * Version: Alpha 0.956
+ * Version: Alpha 0.961
  * Author: Iwo laskowski & PKN TEAM
  * Text Domain: pkn-backend
  */
@@ -15,8 +15,8 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SC_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('SC_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('SC_PLUGIN_VERSION', '0.956');
-define('SC_VERSION', '0.956');
+define('SC_PLUGIN_VERSION', '0.961');
+define('SC_VERSION', '0.961');
 
 // Include required files
 require_once SC_PLUGIN_PATH . 'includes/functions.php';
@@ -282,14 +282,22 @@ function sc_handle_social_tracking_redirect() {
     $community_id = isset($_GET['community_id']) ? sanitize_text_field($_GET['community_id']) : '';
     $platform = isset($_GET['platform']) ? sanitize_key($_GET['platform']) : '';
     $redirect_to = isset($_GET['redirect_to']) ? esc_url_raw(rawurldecode($_GET['redirect_to'])) : '';
+    $allowed_platforms = array('facebook', 'instagram', 'tiktok', 'discord', 'webpage');
 
     if (!empty($community_id) && !empty($platform)) {
+        if (!empty($community_id) && !empty($platform) && in_array($platform, $allowed_platforms, true)) {
         sc_track_social_click($community_id, $platform);
+        }
     }
 
-    if (!empty($redirect_to)) {
-        wp_safe_redirect($redirect_to);
-        exit;
+    if (!empty($redirect_to) && in_array($platform, $allowed_platforms, true)) {
+        $community = sc_get_community_by_id($community_id);
+        $stored_url = is_array($community) && !empty($community[$platform]) ? esc_url_raw($community[$platform]) : '';
+        $scheme = wp_parse_url($redirect_to, PHP_URL_SCHEME);
+        if ($stored_url !== '' && $stored_url === $redirect_to && in_array(strtolower((string) $scheme), array('http', 'https'), true)) {
+            wp_redirect($redirect_to);
+            exit;
+        }
     }
 }
 add_action('template_redirect', 'sc_handle_social_tracking_redirect');
@@ -496,7 +504,7 @@ function sc_create_tables() {
  */
 
 function sc_maybe_upgrade_schema() {
-    $schema_version = '2026-05-06-import-history-links';
+    $schema_version = '2026-05-07-history-tags-updater';
     if (get_option('sc_schema_version') === $schema_version) {
         return;
     }
@@ -912,11 +920,14 @@ function sc_extract_facebook_identifier($value) {
         $path = wp_parse_url($value, PHP_URL_PATH);
         $segments = array_values(array_filter(explode('/', (string) $path)));
         if (!empty($segments)) {
-            $first = $segments[0];
-            if (in_array(strtolower($first), array('pages','pg')) && !empty($segments[1])) {
+            $first = strtolower((string) $segments[0]);
+            if (in_array($first, array('groups', 'profile.php', 'people'), true)) {
+                return new WP_Error('unsupported_facebook_url', __('Facebook groups and profiles cannot be pulled reliably without a Facebook API permissioned app. Skipped.', 'science-communities'));
+            }
+            if (in_array($first, array('pages','pg'), true) && !empty($segments[1])) {
                 return sanitize_text_field($segments[1]);
             }
-            return sanitize_text_field($first);
+            return sanitize_text_field($segments[0]);
         }
     }
     return sanitize_text_field(ltrim($value, '@/'));
@@ -924,6 +935,7 @@ function sc_extract_facebook_identifier($value) {
 
 function sc_fetch_facebook_page_data($facebook_input) {
     $identifier = sc_extract_facebook_identifier($facebook_input);
+    if (is_wp_error($identifier)) return $identifier;
     if ($identifier === '') return new WP_Error('missing_identifier', 'Missing Facebook page URL or username.');
 
     $cache_key = 'sc_fb_' . md5($identifier);
@@ -965,19 +977,46 @@ function sc_ajax_pull_facebook_data() {
     if (!$community_id || !sc_user_can_edit_community($community_id)) wp_send_json_error('No permission.');
 
     $community = sc_get_community_by_id($community_id);
-    $fb_input = sanitize_text_field($_POST['facebook'] ?? ($community['facebook'] ?? ''));
+    if (!$community) wp_send_json_error('Community not found.');
+
+    $fb_input = esc_url_raw($_POST['facebook'] ?? ($community['facebook'] ?? ''));
+    if ($fb_input === '' && !empty($community['facebook'])) {
+        $fb_input = esc_url_raw($community['facebook']);
+    }
+
     $fb = sc_fetch_facebook_page_data($fb_input);
     if (is_wp_error($fb)) wp_send_json_error($fb->get_error_message());
 
     global $wpdb;
     $table = $wpdb->prefix . 'science_communities';
-    $updates = array('facebook' => esc_url_raw($fb_input), 'updated_at' => current_time('mysql'));
-    if (!empty($fb['picture_url'])) $updates['logo'] = $fb['picture_url'];
-    if (!empty($fb['about']) && empty($community['shortdescription'])) $updates['shortdescription'] = $fb['about'];
-    if (!empty($fb['description']) && empty($community['description'])) $updates['description'] = $fb['description'];
-    $wpdb->update($table, $updates, array('community_id' => $community_id));
+    $updates = array('updated_at' => current_time('mysql'));
+    $changed_fields = array();
+    if (empty($community['facebook']) && $fb_input !== '') {
+        $updates['facebook'] = $fb_input;
+        $changed_fields[] = 'facebook';
+    }
+    if (!empty($fb['picture_url']) && empty($community['logo'])) {
+        $updates['logo'] = $fb['picture_url'];
+        $changed_fields[] = 'logo';
+    }
+    if (!empty($fb['about']) && empty($community['shortdescription'])) {
+        $updates['shortdescription'] = $fb['about'];
+        $changed_fields[] = 'shortdescription';
+    }
+    if (!empty($fb['description']) && empty($community['description'])) {
+        $updates['description'] = $fb['description'];
+        $changed_fields[] = 'description';
+    }
 
-    wp_send_json_success(array('message' => 'Facebook data pulled successfully.', 'data' => $fb));
+    if (!empty($changed_fields)) {
+        $wpdb->update($table, $updates, array('community_id' => $community_id));
+    }
+
+    wp_send_json_success(array(
+        'message' => empty($changed_fields) ? __('Facebook pull skipped because existing fields are already filled.', 'science-communities') : __('Facebook data pulled successfully.', 'science-communities'),
+        'data' => $fb,
+        'changed_fields' => $changed_fields,
+    ));
 }
 add_action('wp_ajax_sc_pull_facebook_data', 'sc_ajax_pull_facebook_data');
 
@@ -1040,7 +1079,10 @@ function sc_handle_add_community() {
         'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
         'is_archived' => isset($_POST['is_archived']) ? 1 : 0,
-        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+        'tags' => array_merge(
+            isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+            isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
+        ),
         'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
     );
 
@@ -1100,7 +1142,10 @@ function sc_handle_edit_community() {
         'faculty_id' => isset($_POST['faculty_id']) && $_POST['faculty_id'] !== '' ? intval($_POST['faculty_id']) : null,
         'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
         'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
-        'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
+        'tags' => array_merge(
+            isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+            isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
+        ),
         'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
         'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
         'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),

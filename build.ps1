@@ -1,4 +1,4 @@
-﻿#BUILDER VERSION 2.11
+﻿#BUILDER VERSION 2.12
 
 #Requires -Version 5.1
 Set-StrictMode -Version Latest
@@ -126,7 +126,7 @@ New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
 # Copy main plugin file
 Copy-Item -Path $PluginMain -Destination (Join-Path $DestDir "PKN-backend.php") -Force
 
-# Copy plugin folders
+# Copy plugin folders, excluding nested IDE/build artifacts that can corrupt plugin zips.
 foreach ($folder in @('templates', 'lang', 'includes', 'assets')) {
     $src = Join-Path $RootDir $folder
     if (Test-Path $src) {
@@ -135,11 +135,23 @@ foreach ($folder in @('templates', 'lang', 'includes', 'assets')) {
         Write-Host "WARNING: Folder not found, skipping: $folder" -ForegroundColor Yellow
     }
 }
+Get-ChildItem -Path $DestDir -Directory -Recurse -Force -Filter '.vs' | Remove-Item -Recurse -Force
+Get-ChildItem -Path $DestDir -Directory -Recurse -Force -Filter '.vscode' | Remove-Item -Recurse -Force
+Get-ChildItem -Path $DestDir -File -Recurse -Force -Include '*.slnx','*.suo','*.user','*.vsidx' | Remove-Item -Force
 
-# Create zip — always named PKN.zip
+# Create zip — always named PKN.zip and containing the pkn-backend folder at its root.
+# WordPress updates are most reliable when the archive root is the plugin directory,
+# not loose files from inside that directory.
 $ZipPath = Join-Path $BuildsDir "PKN.zip"
 Write-Host "Compressing..."
-Compress-Archive -Path (Join-Path $DestDir '*') -DestinationPath $ZipPath -Force
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    $DestDir,
+    $ZipPath,
+    [System.IO.Compression.CompressionLevel]::Optimal,
+    $true
+)
  
 # Write latest.json manifest
 $Manifest = @"

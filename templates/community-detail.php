@@ -46,7 +46,7 @@ function sc_build_social_url($community, $platform) {
 
     return esc_url_raw(add_query_arg(array(
         'sc_track_social' => 1,
-        'community_id' => sanitize_text_field($community['id']),
+        'community_id' => sanitize_text_field($community['community_id']),
         'platform' => $platform,
         'redirect_to' => rawurlencode($community[$platform]),
     ), home_url('/')));
@@ -118,7 +118,7 @@ $is_open_for_applications = !empty($community['open_for_applications']);
             ?>
                 <tr>
                     <th scope="row"><?php echo esc_html(sc_t($label_key)); ?></th>
-                    <td><a href="<?php echo esc_url($link); ?>" target="_blank" rel="noopener noreferrer"><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr(sc_t($label_key)); ?>"></a></td>
+                    <td><a href="<?php echo esc_url($link); ?>"<?php echo $platform === 'contact_email' ? '' : ' target="_blank" rel="noopener noreferrer"'; ?>><img src="<?php echo esc_url($icon); ?>" alt="<?php echo esc_attr(sc_t($label_key)); ?>"></a></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

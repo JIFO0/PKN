@@ -89,7 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sc_community_edit_fla
                 'faculty_id' => isset($_POST['faculty_id']) && !empty($_POST['faculty_id']) ? intval($_POST['faculty_id']) : null,
                 'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'active',
                 'is_archived' => sc_is_superadmin() && isset($_POST['is_archived']) ? 1 : 0,
-                'tags' => isset($_POST['tags']) ? array_map('sanitize_text_field', $_POST['tags']) : array(),
+                'tags' => array_merge(
+                    isset($_POST['tags']) ? array_map('sanitize_text_field', (array) $_POST['tags']) : array(),
+                    isset($_POST['new_tags']) ? sc_normalize_tags_input(wp_unslash($_POST['new_tags'])) : array()
+                ),
                 'event_images' => isset($_POST['event_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['event_images'])))) : array(),
                 'team_images' => isset($_POST['team_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['team_images'])))) : array(),
                 'gallery_images' => isset($_POST['gallery_images']) ? array_filter(array_map('trim', explode("\n", wp_unslash($_POST['gallery_images'])))) : array(),
@@ -201,7 +204,7 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
         </div>
 
         <div class="sc-form-group">
-            <<button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html(sc_t('pull_facebook')); ?></button>
+            <button type="button" class="button" id="sc-pull-facebook" data-community-id="<?php echo esc_attr($community_id); ?>"><?php echo esc_html(sc_t('pull_facebook')); ?></button>
             <p id="sc-facebook-pull-status" style="margin-top:8px;"></p>
         </div>
         <div class="sc-form-group">
@@ -352,6 +355,8 @@ $gallery_images = sc_get_community_images($community_id, 'gallery');
                     </label>
                 <?php endforeach; ?>
             </div>
+            <input type="text" name="new_tags" class="regular-text" placeholder="<?php echo esc_attr__('Add new tags, separated by commas', 'science-communities'); ?>">
+            <p class="description"><?php echo esc_html__('New tags are saved only when this community uses them, so unused tags are not kept.', 'science-communities'); ?></p>
         </div>
 
         <div class="sc-form-actions">

@@ -153,18 +153,38 @@ function sc_after_plugin_install($response, $hook_extra, $result) {
 
     $plugin_dir = WP_PLUGIN_DIR . '/pkn-backend';
 
-    if (!empty($result['destination'])) {
-        $source_dir = sc_find_installed_plugin_dir($result['destination']);
-
-        if ($source_dir !== trailingslashit($plugin_dir)) {
-            if ($wp_filesystem->exists($plugin_dir)) {
-                $wp_filesystem->delete($plugin_dir, true);
-            }
-            $wp_filesystem->move($source_dir, $plugin_dir);
-        }
-        $result['destination'] = $plugin_dir;
+    if (empty($result['destination'])) {
+        return $result;
     }
 
+     $source_dir = sc_find_installed_plugin_dir($result['destination']);
+    $source_main = trailingslashit($source_dir) . 'PKN-backend.php';
+
+    if (!$wp_filesystem->exists($source_main)) {
+        return new WP_Error(
+            'sc_update_missing_main_file',
+            __('PKN update package is invalid: PKN-backend.php was not found at the archive root or inside the pkn-backend folder.', 'pkn-backend')
+        );
+    }
+
+    $headers = get_file_data($source_main, array('Plugin Name' => 'Plugin Name', 'Version' => 'Version'));
+    if (empty($headers['Plugin Name']) || empty($headers['Version'])) {
+        return new WP_Error(
+            'sc_update_invalid_headers',
+            __('PKN update package is invalid: the main plugin file has missing or invalid plugin headers.', 'pkn-backend')
+        );
+    }
+
+    if (trailingslashit($source_dir) !== trailingslashit($plugin_dir)) {
+        if ($wp_filesystem->exists($plugin_dir)) {
+            $wp_filesystem->delete($plugin_dir, true);
+        }
+        if (!$wp_filesystem->move($source_dir, $plugin_dir)) {
+            return new WP_Error('sc_update_move_failed', __('Could not move the PKN update into the plugin directory.', 'pkn-backend'));
+        }
+    }
+    $result['destination'] = $plugin_dir;
+    $result['destination_name'] = 'pkn-backend';
     return $result;
 }
 

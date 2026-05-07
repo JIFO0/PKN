@@ -59,6 +59,13 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
                         </p>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="upload_info"><?php _e('Upload info', 'science-communities'); ?></label></th>
+                    <td>
+                        <textarea name="upload_info" id="upload_info" class="large-text" rows="3" placeholder="<?php esc_attr_e('Optional notes about this upload, data source, or reason for importing.', 'science-communities'); ?>"></textarea>
+                        <p class="description"><?php _e('Saved in update history together with the import summary.', 'science-communities'); ?></p>
+                    </td>
+                </tr>
             </table>
             
             <p class="submit">
@@ -133,11 +140,12 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
                     <th><?php _e('Updated', 'science-communities'); ?></th>
                     <th><?php _e('Deleted', 'science-communities'); ?></th>
                     <th><?php _e('Skipped', 'science-communities'); ?></th>
+                    <th><?php _e('Info', 'science-communities'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (empty($history_entries)): ?>
-                    <tr><td colspan="8"><?php _e('No update history yet.', 'science-communities'); ?></td></tr>
+                    <tr><td colspan="9"><?php _e('No update history yet.', 'science-communities'); ?></td></tr>
                 <?php else: ?>
                     <?php foreach ($history_entries as $entry): ?>
                         <tr>
@@ -149,6 +157,7 @@ $update_status = function_exists('sc_get_update_status') ? sc_get_update_status(
                             <td><?php echo esc_html((int) $entry['communities_updated']); ?></td>
                             <td><?php echo esc_html((int) $entry['communities_deleted']); ?></td>
                             <td><?php echo esc_html((int) $entry['communities_skipped']); ?></td>
+                            <td><?php echo esc_html($entry['notes']); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
