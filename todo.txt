@@ -95,18 +95,10 @@ Pending: Build a full UG-like header replacement with logo text/icons once final
 
 
 
-System zgłoszeń
 Strona główna
-Tagi spierdolone
-Placeholder description
-Menu
-
-
-
-
-
-W dzień otwarty 2024 roku 
-
+W dzień otwarty 2024 roku szukałem kół naukowych do dołączenia, ale zdałem sobie sprawę z problemu - na stronie koła są zdezaktualizowane, na stronach wydziału są nie
 Things on my main page - a nice hero with an animated sc searchbox that appears.
 Then there should be 
 
+
+Strona kontakt

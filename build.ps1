@@ -49,17 +49,17 @@ function Ensure-GhConfigured {
 }
 
 try {
- 
-# Resolve root dir relative to THIS script file â€” works both when
-# double-clicked and when run from a PowerShell session.
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $RootDir    = (Resolve-Path $ScriptDir).Path
 $PluginMain = Join-Path $RootDir "PKN-backend.php"
 $BuildsDir  = Join-Path $RootDir "builds"
 $DistDir    = Join-Path $RootDir ".dist"
+
  
 Write-Host "Root  : $RootDir"
 Write-Host "Plugin: $PluginMain"
+Write-Host "DEBUG RootDir: $RootDir" -ForegroundColor Magenta
+Write-Host "DEBUG includes exists: $(Test-Path (Join-Path $RootDir 'includes'))" -ForegroundColor Magenta
  
 if (-not (Test-Path $PluginMain)) {
     Write-Host "ERROR: Plugin file not found: $PluginMain" -ForegroundColor Red
@@ -118,11 +118,6 @@ if (Test-Path $CurrentZip) {
     }
 }
 
-# Stage the exact files/folders that belong in the plugin zip
-$DestDir = Join-Path $DistDir "pkn-backend"
-if (Test-Path $DestDir) { Remove-Item $DestDir -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
-
 # Copy main plugin file
 Copy-Item -Path $PluginMain -Destination (Join-Path $DestDir "PKN-backend.php") -Force
 
@@ -146,12 +141,29 @@ $ZipPath = Join-Path $BuildsDir "PKN.zip"
 Write-Host "Compressing..."
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-    $DestDir,
-    $ZipPath,
-    [System.IO.Compression.CompressionLevel]::Optimal,
-    $true
-)
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+
+$stream = [System.IO.File]::Open($ZipPath, [System.IO.FileMode]::Create)
+$archive = [System.IO.Compression.ZipArchive]::new($stream, [System.IO.Compression.ZipArchiveMode]::Create)
+
+Get-ChildItem -Path $DestDir -Recurse -File | ForEach-Object {
+    $filePath = $_.FullName
+    $relativePath = $filePath.Substring($DestDir.Length + 1).Replace('\', '/')
+    $entryName = "pkn-backend/$relativePath"
+    $entry = $archive.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+    $entryStream = $entry.Open()
+    $fileStream = [System.IO.File]::OpenRead($filePath)
+    $fileStream.CopyTo($entryStream)
+    $fileStream.Dispose()
+    $entryStream.Dispose()
+}
+
+$archive.Dispose()
+$stream.Dispose()
+Write-Host "ZIP created with forward slashes." -ForegroundColor Green
  
 # Write latest.json manifest
 $Manifest = @"

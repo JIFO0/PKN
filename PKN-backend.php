@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PKN Backend
  * Description: Plugin do zarządzania kołami naukowymi na PKN
- * Version: Alpha 0.961
+ * Version: Alpha 0.965
  * Author: Iwo laskowski & PKN TEAM
  * Text Domain: pkn-backend
  */
@@ -15,8 +15,8 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SC_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('SC_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('SC_PLUGIN_VERSION', '0.961');
-define('SC_VERSION', '0.961');
+define('SC_PLUGIN_VERSION', '0.965');
+define('SC_VERSION', '0.965');
 
 // Include required files
 require_once SC_PLUGIN_PATH . 'includes/functions.php';
