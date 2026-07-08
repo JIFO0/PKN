@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PKN Backend
  * Description: Plugin do zarządzania kołami naukowymi na PKN
- * Version: Alpha 0.969
+ * Version: Alpha 0.971
  * Author: Iwo laskowski & PKN TEAM
  * Text Domain: pkn-backend
  */
@@ -916,57 +916,677 @@ add_action('wp_ajax_sc_upload_logo', 'sc_ajax_upload_logo');
 function sc_extract_facebook_identifier($value) {
     $value = trim((string) $value);
     if ($value === '') return '';
+
+    // Normalize URL to ensure it starts with http/https if it contains facebook.com
+    if (!preg_match('#^https?://#i', $value)) {
+        if (preg_match('#^(www\.)?facebook\.com#i', $value)) {
+            $value = 'https://' . $value;
+        }
+    }
+
     if (preg_match('#^https?://#i', $value)) {
+        // 1. Check for 'id' parameter in the query string (common for profile.php?id=...)
+        $query_str = wp_parse_url($value, PHP_URL_QUERY);
+        if (!empty($query_str)) {
+            wp_parse_str($query_str, $query_params);
+            if (!empty($query_params['id'])) {
+                return sanitize_text_field($query_params['id']);
+            }
+        }
+
+        // 2. Parse path segments
         $path = wp_parse_url($value, PHP_URL_PATH);
         $segments = array_values(array_filter(explode('/', (string) $path)));
         if (!empty($segments)) {
             $first = strtolower((string) $segments[0]);
-            if (in_array($first, array('groups', 'profile.php', 'people'), true)) {
-                return new WP_Error('unsupported_facebook_url', __('Facebook groups and profiles cannot be pulled reliably without a Facebook API permissioned app. Skipped.', 'science-communities'));
+
+            // Handle groups, people, pages, pg
+            if (in_array($first, array('groups', 'people', 'pages', 'pg'), true)) {
+                // If the last segment is numeric, it is likely the page/profile/group ID
+                $last = end($segments);
+                if (preg_match('/^[0-9]+$/', $last)) {
+                    return sanitize_text_field($last);
+                }
+                // Otherwise, if we have a second segment, return it (e.g. pages/SomeName -> SomeName)
+                if (count($segments) >= 2) {
+                    $identifier = $segments[1];
+                    if (preg_match('/-([0-9]{9,})$/', $identifier, $matches)) {
+                        return sanitize_text_field($matches[1]);
+                    }
+                    return sanitize_text_field($identifier);
+                }
             }
-            if (in_array($first, array('pages','pg'), true) && !empty($segments[1])) {
-                return sanitize_text_field($segments[1]);
+
+            // profile.php requires query param 'id', otherwise it's unsupported
+            if ($first === 'profile.php') {
+                return new WP_Error('unsupported_facebook_url', __('Facebook profile ID could not be extracted from URL.', 'science-communities'));
             }
-            return sanitize_text_field($segments[0]);
+
+            // If the identifier ends with a hyphen and a long number (e.g. Science-Club-100067396204769)
+            $identifier = $segments[0];
+            if (preg_match('/-([0-9]{9,})$/', $identifier, $matches)) {
+                return sanitize_text_field($matches[1]);
+            }
+
+            return sanitize_text_field($identifier);
         }
     }
-    return sanitize_text_field(ltrim($value, '@/'));
+
+    // Default fallback: trim leading character symbols and return value
+    $identifier = ltrim($value, '@/');
+    if (preg_match('/-([0-9]{9,})$/', $identifier, $matches)) {
+        return sanitize_text_field($matches[1]);
+    }
+    return sanitize_text_field($identifier);
 }
 
-function sc_fetch_facebook_page_data($facebook_input) {
-    $identifier = sc_extract_facebook_identifier($facebook_input);
-    if (is_wp_error($identifier)) return $identifier;
-    if ($identifier === '') return new WP_Error('missing_identifier', 'Missing Facebook page URL or username.');
+/**
+ * Registry to hold and manage different image extractors.
+ */
+class SCFacebookExtractorRegistry {
+    private static $extractors = array();
+    
+    public static function register($name, $callback) {
+        self::$extractors[$name] = $callback;
+    }
+    
+    public static function extract($html) {
+        $candidates = array();
+        foreach (self::$extractors as $name => $callback) {
+            if (is_callable($callback)) {
+                try {
+                    $results = call_user_func($callback, $html);
+                    if (is_array($results)) {
+                        foreach ($results as $res) {
+                            if (!empty($res) && is_string($res)) {
+                                $candidates[] = array(
+                                    'url' => $res,
+                                    'source' => $name
+                                );
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    sc_log_error(sprintf("Extractor '%s' threw exception: %s", $name, $e->getMessage()));
+                }
+            }
+        }
+        return $candidates;
+    }
+}
 
-    $cache_key = 'sc_fb_' . md5($identifier);
+// Register og:image extractor
+SCFacebookExtractorRegistry::register('og:image', function($html) {
+    $urls = array();
+    $dom = new DOMDocument();
+    $internal_errors = libxml_use_internal_errors(true);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    $xpath = new DOMXPath($dom);
+    $metas = $xpath->query('//meta[@property="og:image"]');
+    foreach ($metas as $meta) {
+        $content = $meta->getAttribute('content');
+        if (!empty($content)) {
+            $urls[] = $content;
+        }
+    }
+    libxml_use_internal_errors($internal_errors);
+    return $urls;
+});
+
+// Register twitter:image extractor
+SCFacebookExtractorRegistry::register('twitter:image', function($html) {
+    $urls = array();
+    $dom = new DOMDocument();
+    $internal_errors = libxml_use_internal_errors(true);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    $xpath = new DOMXPath($dom);
+    $metas = $xpath->query('//meta[@name="twitter:image"]');
+    foreach ($metas as $meta) {
+        $content = $meta->getAttribute('content');
+        if (!empty($content)) {
+            $urls[] = $content;
+        }
+    }
+    libxml_use_internal_errors($internal_errors);
+    return $urls;
+});
+
+// Register link_image_src extractor
+SCFacebookExtractorRegistry::register('link_image_src', function($html) {
+    $urls = array();
+    $dom = new DOMDocument();
+    $internal_errors = libxml_use_internal_errors(true);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    $xpath = new DOMXPath($dom);
+    $links = $xpath->query('//link[@rel="image_src"]');
+    foreach ($links as $link) {
+        $href = $link->getAttribute('href');
+        if (!empty($href)) {
+            $urls[] = $href;
+        }
+    }
+    libxml_use_internal_errors($internal_errors);
+    return $urls;
+});
+
+// Helper function for json-ld recursion
+if (!function_exists('sc_extract_images_from_json_ld_recursive')) {
+    function sc_extract_images_from_json_ld_recursive($data) {
+        $urls = array();
+        if (isset($data['image'])) {
+            if (is_string($data['image'])) {
+                $urls[] = $data['image'];
+            } elseif (is_array($data['image'])) {
+                if (isset($data['image']['url'])) {
+                    $urls[] = $data['image']['url'];
+                } else {
+                    foreach ($data['image'] as $img) {
+                        if (is_string($img)) {
+                            $urls[] = $img;
+                        } elseif (is_array($img) && isset($img['url'])) {
+                            $urls[] = $img['url'];
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($data as $key => $value) {
+            if (is_array($value) && $key !== 'image') {
+                $urls = array_merge($urls, sc_extract_images_from_json_ld_recursive($value));
+            }
+        }
+        return $urls;
+    }
+}
+
+// Register json_ld extractor
+SCFacebookExtractorRegistry::register('json_ld', function($html) {
+    $urls = array();
+    $dom = new DOMDocument();
+    $internal_errors = libxml_use_internal_errors(true);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    $xpath = new DOMXPath($dom);
+    $scripts = $xpath->query('//script[@type="application/ld+json"]');
+    foreach ($scripts as $script) {
+        $json_content = trim($script->nodeValue);
+        if (!empty($json_content)) {
+            $data = json_decode($json_content, true);
+            if (is_array($data)) {
+                $urls = array_merge($urls, sc_extract_images_from_json_ld_recursive($data));
+            }
+        }
+    }
+    libxml_use_internal_errors($internal_errors);
+    return $urls;
+});
+
+/**
+ * Check if the supplied URL is a Facebook profile URL.
+ */
+function sc_is_facebook_profile_url($url) {
+    $url = trim((string) $url);
+    if ($url === '') return false;
+    
+    $path = wp_parse_url($url, PHP_URL_PATH);
+    if (empty($path)) return false;
+    
+    $segments = array_values(array_filter(explode('/', (string) $path)));
+    if (empty($segments)) return false;
+    
+    $first = strtolower((string) $segments[0]);
+    if ($first === 'profile.php' || $first === 'people') {
+        return true;
+    }
+    
+    // Also check query param 'id' which indicates profile.php
+    $query = wp_parse_url($url, PHP_URL_QUERY);
+    if (!empty($query)) {
+        wp_parse_str($query, $query_params);
+        if (!empty($query_params['id'])) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Normalize Facebook URL.
+ */
+function sc_normalize_facebook_url($url) {
+    $url = trim((string) $url);
+    if ($url === '') return '';
+
+    if (!preg_match('#^https?://#i', $url)) {
+        if (preg_match('#^(www\.)?facebook\.com#i', $url)) {
+            $url = 'https://' . $url;
+        } else {
+            $url = 'https://www.facebook.com/' . ltrim($url, '@/');
+        }
+    }
+    return $url;
+}
+
+/**
+ * Fetch Facebook page HTML following redirects manually to log the chain.
+ */
+function sc_fetch_facebook_html($url) {
+    $user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    $max_redirects = 5;
+    $current_url = $url;
+    $redirect_chain = array();
+    
+    for ($i = 0; $i <= $max_redirects; $i++) {
+        $args = array(
+            'timeout'     => 15,
+            'redirection' => 0, // Follow manually
+            'user-agent'  => $user_agent,
+            'sslverify'   => true,
+        );
+        
+        $response = wp_remote_get($current_url, $args);
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success'        => false,
+                'error'          => $response,
+                'redirect_chain' => $redirect_chain,
+                'code'           => 0
+            );
+        }
+        
+        $code = (int) wp_remote_retrieve_response_code($response);
+        
+        if ($code >= 300 && $code < 400) {
+            $location = wp_remote_retrieve_header($response, 'location');
+            if (!empty($location)) {
+                if (preg_match('#^/#', $location)) {
+                    $parsed = wp_parse_url($current_url);
+                    $location = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? 'www.facebook.com') . $location;
+                }
+                $redirect_chain[] = array(
+                    'from' => $current_url,
+                    'to'   => $location,
+                    'code' => $code
+                );
+                $current_url = $location;
+                continue;
+            }
+        }
+        
+        return array(
+            'success'        => true,
+            'response'       => $response,
+            'final_url'      => $current_url,
+            'redirect_chain' => $redirect_chain,
+            'code'           => $code
+        );
+    }
+    
+    return array(
+        'success'        => false,
+        'error'          => new WP_Error('too_many_redirects', __('Too many redirects.', 'science-communities')),
+        'redirect_chain' => $redirect_chain,
+        'code'           => 0
+    );
+}
+
+/**
+ * Validate Facebook image URL.
+ */
+function sc_validate_facebook_image_url($url) {
+    if (empty($url) || !is_string($url)) return false;
+    
+    // Must be HTTPS
+    if (strpos($url, 'https://') !== 0) return false;
+    
+    // Check path extension or keywords
+    $path = wp_parse_url($url, PHP_URL_PATH);
+    if (!empty($path)) {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $allowed_exts = array('jpg', 'jpeg', 'png', 'webp', 'gif');
+        if (!in_array($ext, $allowed_exts) && strpos($url, 'fbcdn.net') === false && strpos($url, 'safe_image.php') === false && strpos($url, 'picture') === false) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Score and select the best Facebook image candidate.
+ */
+function sc_select_best_facebook_image($candidates) {
+    if (empty($candidates)) return null;
+    
+    $valid_candidates = array();
+    foreach ($candidates as $cand) {
+        if (sc_validate_facebook_image_url($cand['url'])) {
+            $valid_candidates[] = $cand;
+        }
+    }
+    
+    if (empty($valid_candidates)) return null;
+    
+    $source_priority = array(
+        'og:image'       => 1,
+        'twitter:image'  => 2,
+        'link_image_src' => 3,
+        'json_ld'        => 4
+    );
+    
+    $best_candidate = null;
+    $best_score = 999;
+    
+    foreach ($valid_candidates as $cand) {
+        $url = $cand['url'];
+        $source = $cand['source'];
+        $priority = $source_priority[$source] ?? 10;
+        
+        $is_fb_cdn = (strpos($url, 'fbcdn.net') !== false || strpos($url, 'facebook.com') !== false);
+        if ($is_fb_cdn) {
+            $priority -= 0.5;
+        }
+        
+        if ($priority < $best_score) {
+            $best_score = $priority;
+            $best_candidate = $cand;
+        }
+    }
+    
+    return $best_candidate ? $best_candidate['url'] : null;
+}
+
+/**
+ * Extract Name and Description from Facebook HTML.
+ */
+function sc_extract_facebook_metadata_from_html($html) {
+    $metadata = array(
+        'name'        => '',
+        'description' => ''
+    );
+    
+    $dom = new DOMDocument();
+    $internal_errors = libxml_use_internal_errors(true);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+    $xpath = new DOMXPath($dom);
+    
+    // og:title, twitter:title
+    $title_metas = $xpath->query('//meta[@property="og:title"] | //meta[@name="twitter:title"]');
+    foreach ($title_metas as $meta) {
+        $content = $meta->getAttribute('content');
+        if (!empty($content)) {
+            $metadata['name'] = trim($content);
+            break;
+        }
+    }
+    if (empty($metadata['name'])) {
+        $title_tag = $xpath->query('//title');
+        if ($title_tag->length > 0) {
+            $metadata['name'] = trim($title_tag->item(0)->nodeValue);
+        }
+    }
+    
+    // Clean up title
+    if (!empty($metadata['name'])) {
+        $metadata['name'] = preg_replace('/\s*\|\s*Facebook\s*$/i', '', $metadata['name']);
+        $metadata['name'] = preg_replace('/\s*-\s*Log In or Sign Up\s*$/i', '', $metadata['name']);
+    }
+    
+    // og:description, twitter:description, description
+    $desc_metas = $xpath->query('//meta[@property="og:description"] | //meta[@name="twitter:description"] | //meta[@name="description"]');
+    foreach ($desc_metas as $meta) {
+        $content = $meta->getAttribute('content');
+        if (!empty($content)) {
+            $metadata['description'] = trim($content);
+            break;
+        }
+    }
+    
+    libxml_use_internal_errors($internal_errors);
+    return $metadata;
+}
+
+/**
+ * Download and cache the profile image locally.
+ */
+function sc_download_and_cache_facebook_logo($facebook_url) {
+    $facebook_url = trim((string) $facebook_url);
+    $cache_key = 'sc_fb_img_' . md5($facebook_url);
     $cached = get_transient($cache_key);
-    if (is_array($cached)) return $cached;
+    
+    if ($cached !== false) {
+        if ($cached === 'failed') {
+            return new WP_Error('cached_failed_lookup', __('Previously failed to fetch image for this URL.', 'science-communities'));
+        }
+        
+        $attachment_id = attachment_url_to_postid($cached);
+        if ($attachment_id || strpos($cached, 'http') === 0) {
+            $meta_key = 'sc_fb_meta_' . md5($facebook_url);
+            $metadata = get_transient($meta_key);
+            if (!is_array($metadata)) {
+                $metadata = array('name' => '', 'description' => '');
+            }
+            return array(
+                'local_url' => $cached,
+                'metadata'  => $metadata
+            );
+        }
+    }
+    
+    $normalized_url = sc_normalize_facebook_url($facebook_url);
+    
+    // Fetch HTML
+    $fetch_result = sc_fetch_facebook_html($normalized_url);
+    if (!$fetch_result['success']) {
+        set_transient($cache_key, 'failed', DAY_IN_SECONDS);
+        
+        $error_msg = is_wp_error($fetch_result['error']) ? $fetch_result['error']->get_error_message() : __('Failed to fetch URL.', 'science-communities');
+        sc_log_error("Facebook fetch failed", array(
+            'url'            => $normalized_url,
+            'error'          => $error_msg,
+            'redirect_chain' => $fetch_result['redirect_chain']
+        ));
+        return is_wp_error($fetch_result['error']) ? $fetch_result['error'] : new WP_Error('fetch_failed', $error_msg);
+    }
+    
+    $code = $fetch_result['code'];
+    $html = wp_remote_retrieve_body($fetch_result['response']);
+    
+    // Parse metadata
+    $metadata = sc_extract_facebook_metadata_from_html($html);
+    
+    // Extract candidates
+    $candidates = SCFacebookExtractorRegistry::extract($html);
+    
+    // Select best
+    $best_image_url = sc_select_best_facebook_image($candidates);
+    
+    if (empty($best_image_url)) {
+        set_transient($cache_key, 'failed', DAY_IN_SECONDS);
+        
+        sc_log_error("Facebook image extraction failed", array(
+            'url'            => $normalized_url,
+            'http_status'    => $code,
+            'redirect_chain' => $fetch_result['redirect_chain'],
+            'candidates'     => $candidates,
+            'reason'         => 'No valid image candidate matched the criteria.'
+        ));
+        
+        return new WP_Error('no_image_extracted', __('No valid image found in Facebook HTML.', 'science-communities'));
+    }
+    
+    // Download and sideload
+    require_once(ABSPATH . 'wp-admin/includes/media.php');
+    require_once(ABSPATH . 'wp-admin/includes/file.php');
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+    
+    $temp_file = download_url($best_image_url);
+    if (is_wp_error($temp_file)) {
+        set_transient($cache_key, 'failed', DAY_IN_SECONDS);
+        
+        sc_log_error("Facebook image download failed", array(
+            'url'            => $normalized_url,
+            'image_url'      => $best_image_url,
+            'error'          => $temp_file->get_error_message(),
+            'redirect_chain' => $fetch_result['redirect_chain']
+        ));
+        return $temp_file;
+    }
+    
+    $ext = 'jpg';
+    $path = wp_parse_url($best_image_url, PHP_URL_PATH);
+    if (!empty($path)) {
+        $path_ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if (in_array($path_ext, array('jpg', 'jpeg', 'png', 'webp', 'gif'))) {
+            $ext = $path_ext;
+        }
+    }
+    
+    $file_array = array(
+        'name'     => 'fb-logo-' . md5($facebook_url) . '.' . $ext,
+        'tmp_name' => $temp_file
+    );
+    
+    $attachment_id = media_handle_sideload($file_array, 0);
+    if (is_wp_error($attachment_id)) {
+        @unlink($temp_file);
+        set_transient($cache_key, 'failed', DAY_IN_SECONDS);
+        
+        sc_log_error("Facebook image sideload failed", array(
+            'url'            => $normalized_url,
+            'image_url'      => $best_image_url,
+            'error'          => $attachment_id->get_error_message(),
+            'redirect_chain' => $fetch_result['redirect_chain']
+        ));
+        return $attachment_id;
+    }
+    
+    $local_url = wp_get_attachment_url($attachment_id);
+    
+    // Log to custom upload table
+    global $wpdb;
+    $table_uploads = $wpdb->prefix . 'science_community_uploads';
+    if ($wpdb->get_var("SHOW TABLES LIKE '{$table_uploads}'") === $table_uploads) {
+        $filepath = get_attached_file($attachment_id);
+        $filesize = @filesize($filepath);
+        $wpdb->insert(
+            $table_uploads,
+            array(
+                'filename'    => basename($filepath),
+                'filepath'    => $filepath,
+                'filesize'    => $filesize ? $filesize : 0,
+                'uploaded_by' => get_current_user_id()
+            )
+        );
+    }
+    
+    // Cache success
+    set_transient($cache_key, $local_url, 30 * DAY_IN_SECONDS);
+    set_transient('sc_fb_meta_' . md5($facebook_url), $metadata, 30 * DAY_IN_SECONDS);
+    
+    sc_log_error("Facebook image download succeeded", array(
+        'url'            => $normalized_url,
+        'image_url'      => $best_image_url,
+        'local_url'      => $local_url,
+        'http_status'    => $code,
+        'redirect_chain' => $fetch_result['redirect_chain']
+    ));
+    
+    return array(
+        'local_url' => $local_url,
+        'metadata'  => $metadata
+    );
+}
 
-    $token = trim((string) get_option('sc_facebook_app_token', ''));
-    $endpoint = 'https://graph.facebook.com/v19.0/' . rawurlencode($identifier);
-    $query = array('fields' => 'name,about,description,cover,picture.type(large)');
-    if ($token !== '') $query['access_token'] = $token;
-
-    $response = wp_remote_get(add_query_arg($query, $endpoint), array('timeout' => 20));
-    if (is_wp_error($response)) return $response;
-    $code = (int) wp_remote_retrieve_response_code($response);
-    $body = json_decode(wp_remote_retrieve_body($response), true);
-
-    if ($code >= 400 || isset($body['error'])) {
-        $fallback_url = 'https://graph.facebook.com/' . rawurlencode($identifier) . '/picture?type=large&redirect=true';
-        return array('name' => '', 'about' => '', 'description' => '', 'cover_url' => '', 'picture_url' => esc_url_raw($fallback_url), 'fallback_only' => true);
+/**
+ * Fetch and extract data from a Facebook URL (using Graph API or local Scraper fallback).
+ */
+function sc_fetch_facebook_page_data($facebook_input) {
+    $facebook_input = trim((string) $facebook_input);
+    if ($facebook_input === '') {
+        return new WP_Error('missing_identifier', __('Missing Facebook page URL or username.', 'science-communities'));
     }
 
-    $data = array(
-        'name' => sanitize_text_field($body['name'] ?? ''),
-        'about' => sanitize_textarea_field($body['about'] ?? ''),
-        'description' => sanitize_textarea_field($body['description'] ?? ''),
-        'cover_url' => esc_url_raw($body['cover']['source'] ?? ''),
-        'picture_url' => esc_url_raw($body['picture']['data']['url'] ?? ''),
-        'fallback_only' => false,
+    $is_profile = sc_is_facebook_profile_url($facebook_input);
+    $identifier = '';
+    
+    if (!$is_profile) {
+        $extracted = sc_extract_facebook_identifier($facebook_input);
+        if (!is_wp_error($extracted) && $extracted !== '') {
+            $identifier = $extracted;
+        }
+    }
+
+    $token = trim((string) get_option('sc_facebook_app_token', ''));
+
+    // Try Graph API for non-profiles if token is available
+    if ($identifier !== '' && $token !== '') {
+        $cache_key = 'sc_fb_' . md5($identifier);
+        $cached = get_transient($cache_key);
+        if (is_array($cached)) return $cached;
+
+        $endpoint = 'https://graph.facebook.com/v19.0/' . rawurlencode($identifier);
+        $query = array('fields' => 'name,about,description,cover,picture.type(large)');
+        $query['access_token'] = $token;
+
+        $response = wp_remote_get(add_query_arg($query, $endpoint), array('timeout' => 20));
+        
+        if (!is_wp_error($response)) {
+            $code = (int) wp_remote_retrieve_response_code($response);
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+
+            if ($code < 400 && !isset($body['error'])) {
+                $data = array(
+                    'name'          => sanitize_text_field($body['name'] ?? ''),
+                    'about'         => sanitize_textarea_field($body['about'] ?? ''),
+                    'description'   => sanitize_textarea_field($body['description'] ?? ''),
+                    'cover_url'     => esc_url_raw($body['cover']['source'] ?? ''),
+                    'picture_url'   => esc_url_raw($body['picture']['data']['url'] ?? ''),
+                    'fallback_only' => false,
+                );
+                set_transient($cache_key, $data, 7 * DAY_IN_SECONDS);
+                return $data;
+            } else {
+                sc_log_error("Graph API failed", array(
+                    'identifier' => $identifier,
+                    'code'       => $code,
+                    'error'      => $body['error'] ?? 'Unknown error'
+                ));
+            }
+        } else {
+            sc_log_error("Graph API connection error", array(
+                'identifier' => $identifier,
+                'error'      => $response->get_error_message()
+            ));
+        }
+    }
+
+    // Fallback: Use scraper pipeline
+    $scraped = sc_download_and_cache_facebook_logo($facebook_input);
+    
+    if (!is_wp_error($scraped)) {
+        return array(
+            'name'          => sanitize_text_field($scraped['metadata']['name'] ?? ''),
+            'about'         => sanitize_textarea_field($scraped['metadata']['description'] ?? ''),
+            'description'   => sanitize_textarea_field($scraped['metadata']['description'] ?? ''),
+            'cover_url'     => '',
+            'picture_url'   => esc_url_raw($scraped['local_url']),
+            'fallback_only' => false
+        );
+    }
+
+    // Graph API failed or not applicable, and scraper failed too.
+    // Return a structured failure instead of failing the import/ajax entirely.
+    return array(
+        'name'          => '',
+        'about'         => '',
+        'description'   => '',
+        'cover_url'     => '',
+        'picture_url'   => '', // Fallback to placeholder
+        'fallback_only' => true,
+        'error_message' => $scraped->get_error_message()
     );
-    set_transient($cache_key, $data, 7 * DAY_IN_SECONDS);
-    return $data;
 }
 
 function sc_ajax_pull_facebook_data() {
