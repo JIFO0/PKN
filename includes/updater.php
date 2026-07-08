@@ -151,13 +151,21 @@ function sc_find_installed_plugin_dir($directory) {
 function sc_after_plugin_install($response, $hook_extra, $result) {
     global $wp_filesystem;
 
-    $plugin_dir = WP_PLUGIN_DIR . '/pkn-backend';
-
-    if (empty($result['destination'])) {
-        return $result;
+    if (is_wp_error($response)) {
+        return $response;
     }
 
-     $source_dir = sc_find_installed_plugin_dir($result['destination']);
+    if (empty($result['destination'])) {
+        return $response;
+    }
+
+    // Determine the active plugin's folder path and name dynamically to avoid
+    // renaming or deleting the running plugin directory while PHP is executing.
+    // SC_PLUGIN_PATH is defined dynamically in PKN-backend.php.
+    $plugin_dir = defined('SC_PLUGIN_PATH') ? untrailingslashit(SC_PLUGIN_PATH) : WP_PLUGIN_DIR . '/pkn-backend';
+    $plugin_folder_name = basename($plugin_dir);
+
+    $source_dir = sc_find_installed_plugin_dir($result['destination']);
     $source_main = trailingslashit($source_dir) . 'PKN-backend.php';
 
     if (!$wp_filesystem->exists($source_main)) {
@@ -175,6 +183,8 @@ function sc_after_plugin_install($response, $hook_extra, $result) {
         );
     }
 
+    // Only move/rename the directory if the extracted directory is different from
+    // the directory where the active plugin is currently located and running from.
     if (trailingslashit($source_dir) !== trailingslashit($plugin_dir)) {
         if ($wp_filesystem->exists($plugin_dir)) {
             $wp_filesystem->delete($plugin_dir, true);
@@ -183,9 +193,14 @@ function sc_after_plugin_install($response, $hook_extra, $result) {
             return new WP_Error('sc_update_move_failed', __('Could not move the PKN update into the plugin directory.', 'pkn-backend'));
         }
     }
-    $result['destination'] = $plugin_dir;
-    $result['destination_name'] = 'pkn-backend';
-    return $result;
+
+    if (is_array($result)) {
+        $result['destination'] = $plugin_dir;
+        $result['destination_name'] = $plugin_folder_name;
+        return $result;
+    }
+
+    return $response;
 }
 
 function sc_fetch_update_manifest($force_refresh = false) {
